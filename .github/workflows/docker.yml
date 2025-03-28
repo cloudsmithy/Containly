@@ -45,5 +45,5 @@ jobs:
         push: true
         platforms: linux/amd64,linux/arm64
         tags: |
-          cloudsmithy/Containly:${{ env.TAG }}
-          cloudsmithy/Containly:latest
+          cloudsmithy/containly:${{ env.TAG }}
+          cloudsmithy/containly:latest
