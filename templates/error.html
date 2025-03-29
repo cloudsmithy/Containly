@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>错误 - Containly</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .error-container {
+      max-width: 600px;
+      margin: 100px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #fbc2eb, #a6c1ee);
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .error-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+    }
+    
+    .error-message {
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+    }
+    
+    .back-link {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: rgba(255,255,255,0.3);
+      border-radius: 5px;
+      text-decoration: none;
+      color: #333;
+      transition: background-color 0.3s;
+    }
+    
+    .back-link:hover {
+      background-color: rgba(255,255,255,0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="error-container">
+    <div class="error-icon">⚠️</div>
+    <h1>出错了</h1>
+    <div class="error-message">{{ message }}</div>
+    <a href="/" class="back-link">返回首页</a>
+  </div>
+</body>
+</html>
