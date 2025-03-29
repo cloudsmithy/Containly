@@ -68,6 +68,79 @@ def index():
         logger.error(f"渲染主页失败: {str(e)}")
         return render_template("error.html", message=f"获取容器信息失败: {str(e)}")
 
+@app.route('/api/exec/<container_id>', methods=['POST'])
+def container_exec_api(container_id):
+    """在容器中执行命令（非交互式）"""
+    try:
+        logger.info(f"执行容器命令: {container_id}")
+        container = client.containers.get(container_id)
+        
+        # 检查容器是否在运行
+        if container.status != "running":
+            logger.warning(f"容器未运行: {container_id}")
+            return jsonify({"success": False, "error": "容器未运行，无法执行命令"})
+        
+        # 获取要执行的命令和工作目录
+        data = request.get_json()
+        if not data or 'command' not in data:
+            logger.warning("未提供命令")
+            return jsonify({"success": False, "error": "未提供命令"})
+        
+        command = data['command']
+        working_dir = data.get('cwd', '/')
+        logger.info(f"执行命令: {command}, 工作目录: {working_dir}")
+        
+        # 特殊命令处理
+        if command == "clear" or command == "cls":
+            return jsonify({
+                "success": True,
+                "exit_code": 0,
+                "output": ""  # 清屏由前端处理
+            })
+        
+        # 对于 top 命令，添加 -n 1 参数使其只执行一次
+        if command == "top" or command.startswith("top "):
+            if " -n " not in command and " -b" not in command:
+                command = command.replace("top", "top -n 1 -b", 1)
+        
+        # 对于 htop 命令，提示不支持
+        if command == "htop" or command.startswith("htop "):
+            return jsonify({
+                "success": True,
+                "exit_code": 1,
+                "output": "htop 是交互式命令，在此终端中无法正常工作。请使用 top -n 1 代替。"
+            })
+        
+        # 对于 vim, nano 等交互式命令，提示不支持
+        interactive_commands = ['vim', 'vi', 'nano', 'emacs', 'less', 'more']
+        for cmd in interactive_commands:
+            if command == cmd or command.startswith(cmd + ' '):
+                return jsonify({
+                    "success": True,
+                    "exit_code": 1,
+                    "output": f"{cmd} 是交互式命令，在此终端中无法正常工作。请使用 cat 查看文件内容。"
+                })
+        
+        # 执行命令，指定工作目录
+        try:
+            # 使用 shell 命令执行，确保 cd 命令在 shell 中执行
+            result = container.exec_run(["/bin/sh", "-c", f"cd {working_dir} && {command}"], tty=True)
+            
+            # 返回执行结果
+            output = result.output.decode('utf-8', errors='replace')
+            logger.info(f"命令执行完成，退出码: {result.exit_code}")
+            return jsonify({
+                "success": True,
+                "exit_code": result.exit_code,
+                "output": output
+            })
+        except Exception as e:
+            logger.error(f"执行命令失败: {str(e)}")
+            return jsonify({"success": False, "error": f"执行命令失败: {str(e)}"})
+    except Exception as e:
+        logger.error(f"在容器中执行命令失败 {container_id}: {str(e)}")
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route("/api/containers/all")
 def get_all_containers():
     """API端点：获取所有容器的基本信息（不包含资源统计）"""
@@ -268,171 +341,10 @@ def terminal_page(container_id):
         logger.error(f"加载终端页面失败 {container_id}: {str(e)}")
         return render_template("error.html", message=f"加载终端页面失败: {str(e)}")
 
-@socketio.on('connect')
-def handle_connect():
-    logger.info(f"客户端连接: {request.sid}")
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    """处理客户端断开连接"""
-    sid = request.sid
-    logger.info(f"客户端断开连接: {sid}")
-    # 清理终端会话
-    if sid in terminal_sessions:
-        container_id = terminal_sessions[sid]['container_id']
-        exec_id = terminal_sessions[sid]['exec_id']
-        logger.info(f"清理终端会话: {container_id}, exec_id: {exec_id}")
-        try:
-            # 尝试关闭容器中的会话
-            client.api.exec_resize(exec_id, height=1, width=1)
-        except:
-            pass
-        del terminal_sessions[sid]
-
-@socketio.on('terminal_init')
-def handle_terminal_init(data):
-    """初始化终端会话"""
-    container_id = data.get('container_id')
-    if not container_id:
-        emit('terminal_error', {'error': '未提供容器ID'})
-        return
-    
-    try:
-        container = client.containers.get(container_id)
-        if container.status != "running":
-            emit('terminal_error', {'error': '容器未运行，无法连接终端'})
-            return
-        
-        # 检测容器中可用的 shell
-        shell = "/bin/sh"  # 默认使用 sh
-        try:
-            result = container.exec_run("which bash")
-            if result.exit_code == 0:
-                shell = "/bin/bash"
-        except:
-            pass
-        
-        logger.info(f"为容器 {container_id} 创建交互式会话，使用 shell: {shell}")
-        
-        # 创建交互式会话
-        try:
-            exec_instance = client.api.exec_create(
-                container_id,
-                shell,
-                stdin=True,
-                tty=True
-            )
-            
-            exec_id = exec_instance['Id']
-            logger.info(f"创建的 exec ID: {exec_id}")
-            
-            socket = client.api.exec_start(
-                exec_id,
-                socket=True,
-                tty=True,
-                demux=False
-            )
-            
-            logger.info("成功启动 exec 实例")
-            
-            # 保存当前的 sid，以便在线程中使用
-            sid = request.sid
-            
-            # 存储会话信息
-            terminal_sessions[sid] = {
-                'container_id': container_id,
-                'exec_id': exec_id,
-                'socket': socket
-            }
-            
-            # 启动读取线程
-            def read_socket():
-                logger.info(f"启动读取线程，sid: {sid}")
-                try:
-                    while sid in terminal_sessions:
-                        try:
-                            data = socket._sock.recv(4096)
-                            if not data:
-                                logger.info(f"接收到空数据，终止会话 {sid}")
-                                break
-                            
-                            output = data.decode('utf-8', errors='replace')
-                            logger.debug(f"接收到输出数据: {len(output)} 字节")
-                            socketio.emit('terminal_output', {'output': output}, room=sid)
-                        except Exception as e:
-                            logger.error(f"读取终端输出错误: {str(e)}")
-                            break
-                    
-                    # 会话结束
-                    logger.info(f"读取线程结束，sid: {sid}")
-                    if sid in terminal_sessions:
-                        del terminal_sessions[sid]
-                        socketio.emit('terminal_closed', room=sid)
-                except Exception as e:
-                    logger.error(f"读取线程异常: {str(e)}")
-            
-            thread = threading.Thread(target=read_socket)
-            thread.daemon = True
-            thread.start()
-            
-            emit('terminal_ready', {'shell': shell})
-            logger.info(f"终端会话初始化成功: {container_id}")
-            
-        except Exception as e:
-            logger.error(f"创建或启动 exec 实例失败: {str(e)}")
-            emit('terminal_error', {'error': f'创建终端会话失败: {str(e)}'})
-            
-    except Exception as e:
-        logger.error(f"初始化终端会话失败: {str(e)}")
-        emit('terminal_error', {'error': f'初始化终端会话失败: {str(e)}'})
-
-@socketio.on('terminal_input')
-def handle_terminal_input(data):
-    """处理终端输入"""
-    sid = request.sid
-    if sid not in terminal_sessions:
-        emit('terminal_error', {'error': '终端会话不存在'})
-        return
-    
-    try:
-        socket = terminal_sessions[sid]['socket']
-        input_data = data.get('input', '')
-        logger.debug(f"接收到终端输入: {repr(input_data)}, 长度: {len(input_data)}")
-        
-        # 确保输入数据是字节
-        if isinstance(input_data, str):
-            input_bytes = input_data.encode('utf-8')
-        else:
-            input_bytes = input_data
-            
-        # 发送输入到容器
-        socket._sock.sendall(input_bytes)
-        logger.debug(f"已发送 {len(input_bytes)} 字节到容器")
-    except Exception as e:
-        logger.error(f"发送终端输入错误: {str(e)}")
-        emit('terminal_error', {'error': f'发送终端输入错误: {str(e)}'})
-
-@socketio.on('terminal_resize')
-def handle_terminal_resize(data):
-    """调整终端大小"""
-    sid = request.sid
-    if sid not in terminal_sessions:
-        return
-    
-    try:
-        exec_id = terminal_sessions[sid]['exec_id']
-        rows = data.get('rows', 24)
-        cols = data.get('cols', 80)
-        logger.debug(f"调整终端大小: rows={rows}, cols={cols}, exec_id={exec_id}")
-        client.api.exec_resize(exec_id, height=rows, width=cols)
-        logger.debug("终端大小调整成功")
-    except Exception as e:
-        logger.error(f"调整终端大小错误: {str(e)}")
-
 if __name__ == "__main__":
     # 打印所有注册的路由
     print("注册的路由:")
     for rule in app.url_map.iter_rules():
         print(f"{rule.endpoint}: {rule}")
     
-    socketio.run(app, host="0.0.0.0", port=PORT, debug=DEBUG, allow_unsafe_werkzeug=True)
+    app.run(host="0.0.0.0", port=PORT, debug=DEBUG)
