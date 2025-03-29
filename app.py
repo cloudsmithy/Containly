@@ -78,6 +78,11 @@ def restart_container(container_id):
         return jsonify({"status": "restarted"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+    
+@app.route('/container/<container_id>/status')
+def container_status(container_id):
+    container = client.containers.get(container_id)
+    return jsonify({"running": container.status == "running"})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=8000, debug=True)

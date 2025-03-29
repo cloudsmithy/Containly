@@ -169,6 +169,23 @@ a {
   margin-left: 6px;
 }
 
+.toast {
+  padding: 8px 16px;
+  margin-bottom: 8px;
+  color: #fff;
+  background-color: rgba(0,0,0,0.7);
+  border-radius: 8px;
+  animation: fadeToast 0.5s ease-in-out;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  font-size: 0.9rem;
+}
+
+@keyframes fadeToast {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
 .open {
   background-color: var(--status-open);
 }
@@ -215,6 +232,12 @@ a {
   </style>
 </head>
 <body>
+<div id="toast-container" style="
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 9999;
+"></div>
   <div class="top-bar">
     <h1>Containly 容器面板</h1>
     <label for="host-ip">宿主机 IP：</label>
@@ -225,46 +248,43 @@ a {
   </div>
 
   {% for status, containers in grouped.items() %}
-  <div class="section">
-    <h2>{{ status|capitalize }} 容器</h2>
-    <div class="grid">
-      {% for c in containers %}
-      <!-- 修复 div 未闭合问题：data-protocol="http" 后面加 > -->
-      <div
-        class="card"
-        data-container-id="{{ c.id }}"
-        data-container-name="{{ c.name }}"
-        data-protocol="http"
-      >
-        <!-- 右上角按钮组(竖排) -->
-        <div class="card-actions">
-          {% if c.status == "running" %}
-          <button class="action-btn stop-btn" data-id="{{ c.id }}">🛑</button>
-          <button class="action-btn restart-btn" data-id="{{ c.id }}">🔄</button>
-          {% elif c.status == "exited" %}
-          <button class="action-btn start-btn" data-id="{{ c.id }}">▶️</button>
-          {% endif %}
-          <button class="action-btn protocol-btn">🔐</button>
-          <button class="action-btn blacklist-btn">🚫</button>
-        </div>
-
-        <h3>{{ c.name }}</h3>
-        <div class="tag {{ 'host' if c.network == 'host' else '' }}">{{ c.network }}</div>
-        <div class="port-list">
-          {% for p in c.ports %}
-          <div class="port-item" data-host="{{ p.host_port }}" data-container="{{ p.container_port }}">
-            Host: <span class="copyable host-port">{{ p.host_port }}</span> |
-            Container: <span class="copyable container-port">{{ p.container_port }}</span> –
-            <a href="#" class="port-link" target="_blank">跳转</a>
-            <span class="status-indicator" title="检测中..."></span>
-          </div>
-          {% endfor %}
-        </div>
+<div class="section" data-status="{{ status }}">
+  <h2>{{ status|capitalize }} 容器</h2>
+  <div class="grid">
+    {% for c in containers %}
+    <div class="card"
+         data-container-id="{{ c.id }}"
+         data-container-name="{{ c.name }}"
+         data-protocol="http">
+      <div class="card-actions">
+        {% if c.status == "running" %}
+        <button class="action-btn stop-btn" data-id="{{ c.id }}">🛑</button>
+        <button class="action-btn restart-btn" data-id="{{ c.id }}">🔄</button>
+        {% elif c.status == "exited" %}
+        <button class="action-btn start-btn" data-id="{{ c.id }}">▶️</button>
+        {% endif %}
+        <button class="action-btn protocol-btn">🔐</button>
+        <button class="action-btn blacklist-btn">🚫</button>
       </div>
-      {% endfor %}
+
+      <h3>{{ c.name }}</h3>
+      <div class="tag {{ 'host' if c.network == 'host' else '' }}">{{ c.network }}</div>
+      <div class="port-list">
+        {% for p in c.ports %}
+        <div class="port-item" data-host="{{ p.host_port }}" data-container="{{ p.container_port }}">
+          Host: <span class="copyable host-port">{{ p.host_port }}</span> |
+          Container: <span class="copyable container-port">{{ p.container_port }}</span> –
+          <a href="#" class="port-link" target="_blank">跳转</a>
+          <span class="status-indicator" title="检测中..."></span>
+        </div>
+        {% endfor %}
+      </div>
     </div>
+    {% endfor %}
   </div>
-  {% endfor %}
+</div>
+{% endfor %}
+
 
   <script>
     const ipInput = document.getElementById("host-ip");
@@ -279,42 +299,44 @@ a {
     }
 
     /* 更新端口链接 + 在线检测 */
-    function updateLinks() {
-      const ip = ipInput.value.trim();
-      localStorage.setItem("host_ip", ip);
+function updateLinks() {
+  const ip = ipInput.value.trim();
+  localStorage.setItem("host_ip", ip);
 
-      document.querySelectorAll(".card").forEach(card => {
-        const protocol = card.dataset.protocol || "http";
-        card.querySelectorAll(".port-item").forEach(item => {
-          const port = item.dataset.host;
-          const link = item.querySelector(".port-link");
-          const indicator = item.querySelector(".status-indicator");
+  document.querySelectorAll(".card").forEach(card => {
+    const protocol = card.dataset.protocol || "http";
+    const containerName = card.dataset.containerName;
 
-          if (ip && port) {
-            const url = `${protocol}://${ip}:${port}`;
-            link.href = url;
-            link.textContent = url;
+    card.querySelectorAll(".port-item").forEach(item => {
+      const port = item.dataset.host;
+      const link = item.querySelector(".port-link");
+      const indicator = item.querySelector(".status-indicator");
 
-            fetch(url, { method: 'HEAD', mode: 'no-cors' })
-              .then(() => {
-                indicator.classList.add("open");
-                indicator.classList.remove("closed");
-                indicator.title = "端口在线";
-              })
-              .catch(() => {
-                indicator.classList.add("closed");
-                indicator.classList.remove("open");
-                indicator.title = "端口不可达";
-              });
-          } else {
-            link.href = "#";
-            link.textContent = "跳转";
-            indicator.classList.remove("open", "closed");
-            indicator.title = "";
-          }
-        });
-      });
-    }
+      if (ip && port) {
+        const url = `${protocol}://${ip}:${port}`;
+        link.href = url;
+        link.textContent = url;
+
+        fetch(url, { method: 'HEAD', mode: 'no-cors' })
+          .then(() => {
+            indicator.classList.add("open");
+            indicator.classList.remove("closed");
+            indicator.title = "端口在线";
+          })
+          .catch(() => {
+            indicator.classList.add("closed");
+            indicator.classList.remove("open");
+            indicator.title = "端口不可达";
+          });
+      } else {
+        link.href = "#";
+        link.textContent = "跳转";
+        indicator.classList.remove("open", "closed");
+        indicator.title = "";
+      }
+    });
+  });
+}
 
     /* 复制端口号 */
     function enableCopy() {
@@ -330,50 +352,111 @@ a {
     }
 
     /* 启动/停止/重启 */
-    function initContainerActions() {
-      // 启动
-      document.querySelectorAll(".start-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          fetch(`/container/${btn.dataset.id}/start`, { method: "POST" })
-            .then(() => location.reload())
-            .catch(err => console.error(err));
-        });
-      });
-      // 停止
-      document.querySelectorAll(".stop-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          fetch(`/container/${btn.dataset.id}/stop`, { method: "POST" })
-            .then(() => location.reload())
-            .catch(err => console.error(err));
-        });
-      });
-      // 重启
-      document.querySelectorAll(".restart-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          fetch(`/container/${btn.dataset.id}/restart`, { method: "POST" })
-            .then(() => location.reload())
-            .catch(err => console.error(err));
-        });
-      });
+function initContainerActions() {
+  function moveCard(containerId, fromStatus, toStatus) {
+    const card = document.querySelector(`.card[data-container-id="${containerId}"]`);
+    const fromSection = document.querySelector(`.section[data-status="${fromStatus}"] .grid`);
+    const toSection = document.querySelector(`.section[data-status="${toStatus}"] .grid`);
+
+    if (card && toSection) {
+      card.remove();
+      toSection.prepend(card);
     }
+  }
+
+function refreshContainerStatus(containerId) {
+  fetch(`/container/${containerId}/status`)
+    .then(res => res.json())
+    .then(data => {
+      const running = data.running;
+      const card = document.querySelector(`.card[data-container-id="${containerId}"]`);
+      if (!card) return;
+
+      // 重新设置按钮组
+      const actionsDiv = card.querySelector(".card-actions");
+      actionsDiv.innerHTML = running ? `
+        <button class="action-btn stop-btn" data-id="${containerId}">🛑</button>
+        <button class="action-btn restart-btn" data-id="${containerId}">🔄</button>
+        <button class="action-btn protocol-btn">${card.dataset.protocol === "http" ? "🔐" : "🔓"}</button>
+        <button class="action-btn blacklist-btn">🚫</button>
+      ` : `
+        <button class="action-btn start-btn" data-id="${containerId}">▶️</button>
+        <button class="action-btn protocol-btn">${card.dataset.protocol === "http" ? "🔐" : "🔓"}</button>
+        <button class="action-btn blacklist-btn">🚫</button>
+      `;
+
+      // 重新绑定事件（按钮事件）
+      initContainerActions();
+      initProtocolToggle();
+      initBlacklist();
+
+      // 更新容器所在区域
+      const fromStatus = running ? "exited" : "running";
+      const toStatus = running ? "running" : "exited";
+      const fromSection = document.querySelector(`.section[data-status="${fromStatus}"] .grid`);
+      const toSection = document.querySelector(`.section[data-status="${toStatus}"] .grid`);
+
+      if (fromSection && toSection) {
+        card.remove();
+        toSection.prepend(card);
+      }
+
+      // 确保链接状态正确
+      updateLinks();
+    })
+    .catch(err => console.error("刷新状态失败", err));
+}
+
+  function performAction(containerId, action, successMsg) {
+    fetch(`/container/${containerId}/${action}`, { method: "POST" })
+      .then(res => {
+        if (res.ok) {
+          showToast(` ${successMsg}`);
+          setTimeout(() => refreshContainerStatus(containerId), 1000);
+        } else throw new Error(`${action}操作失败`);
+      })
+      .catch(err => showToast(`❌ ${err.message}`));
+  }
+
+  document.querySelectorAll(".start-btn").forEach(btn => {
+    btn.onclick = () => performAction(btn.dataset.id, "start", "容器已启动");
+  });
+
+  document.querySelectorAll(".stop-btn").forEach(btn => {
+    btn.onclick = () => performAction(btn.dataset.id, "stop", "容器已停止");
+  });
+
+  document.querySelectorAll(".restart-btn").forEach(btn => {
+    btn.onclick = () => performAction(btn.dataset.id, "restart", "容器已重启");
+  });
+}
+
 
     /* HTTP/HTTPS切换 + 按钮文字 */
-    function initProtocolToggle() {
-      document.querySelectorAll(".protocol-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          const card = btn.closest(".card");
-          const current = card.dataset.protocol || "http";
-          if (current === "http") {
-            card.dataset.protocol = "https";
-            btn.textContent = "🔓";
-          } else {
-            card.dataset.protocol = "http";
-            btn.textContent = "🔐";
-          }
-          updateLinks();
-        });
-      });
-    }
+function initProtocolToggle() {
+  document.querySelectorAll(".card").forEach(card => {
+    const containerName = card.dataset.containerName;
+    const btn = card.querySelector(".protocol-btn");
+
+    // 加载保存的协议状态
+    const storedProtocol = localStorage.getItem(`protocol_${containerName}`) || "http";
+    card.dataset.protocol = storedProtocol;
+    btn.textContent = storedProtocol === "http" ? "🔐" : "🔓";
+
+    btn.addEventListener("click", () => {
+      const current = card.dataset.protocol;
+      const newProtocol = current === "http" ? "https" : "http";
+      card.dataset.protocol = newProtocol;
+      btn.textContent = newProtocol === "http" ? "🔐" : "🔓";
+
+      // 保存到 localStorage
+      localStorage.setItem(`protocol_${containerName}`, newProtocol);
+
+      updateLinks();
+    });
+  });
+}
+
 
     /* 拉黑容器 (前端 localStorage) */
     function initBlacklist() {
@@ -423,6 +506,15 @@ function initCardToggleActions() {
     });
   });
 }
+
+function showToast(msg, duration = 500) {
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = msg;
+  document.getElementById("toast-container").appendChild(toast);
+  setTimeout(() => toast.remove(), duration);
+}
+
     // DOM 加载后
 
     window.addEventListener("DOMContentLoaded", () => {
