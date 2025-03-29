@@ -3,6 +3,7 @@ import time
 import logging
 from flask import Flask, render_template, request, jsonify, send_from_directory
 import docker
+import json
 
 # 配置日志
 logging.basicConfig(
@@ -19,8 +20,8 @@ PORT = int(os.environ.get('PORT', 5001))  # 改为 5001 避免与 AirPlay 冲突
 REFRESH_INTERVAL = int(os.environ.get('REFRESH_INTERVAL', 30))  # 秒
 LOG_LINES = int(os.environ.get('LOG_LINES', 100))  # 日志行数
 
-# 容器数据缓存
-container_cache = {"data": None, "timestamp": 0, "ttl": 30}  # 30秒缓存
+# 容器数据缓存 - 增加缓存时间到120秒，减少API调用
+container_cache = {"data": None, "timestamp": 0, "ttl": 120}  # 120秒缓存
 
 try:
     client = docker.from_env()
@@ -29,7 +30,7 @@ except Exception as e:
     logger.error(f"无法连接到 Docker: {str(e)}")
     client = None
 
-def get_containers():
+def get_containers(with_stats=False):
     """获取容器列表，带缓存机制"""
     global container_cache
     current_time = time.time()
@@ -50,10 +51,20 @@ def get_containers():
 
 @app.route("/")
 def index():
-    """主页视图"""
+    """主页视图 - 只返回基本框架，容器数据通过API异步加载"""
     if not client:
         return render_template("error.html", message="无法连接到 Docker 守护进程")
     
+    try:
+        # 只返回页面框架，不包含容器数据
+        return render_template("index.html", refresh_interval=REFRESH_INTERVAL)
+    except Exception as e:
+        logger.error(f"渲染主页失败: {str(e)}")
+        return render_template("error.html", message=f"获取容器信息失败: {str(e)}")
+
+@app.route("/api/containers/all")
+def get_all_containers():
+    """API端点：获取所有容器的基本信息（不包含资源统计）"""
     try:
         containers = get_containers()
         grouped = {"running": [], "exited": [], "paused": [], "other": []}
@@ -81,27 +92,14 @@ def index():
                                 "container_port": container_port_num
                             })
 
-            # 获取资源使用情况 - 只为运行中的容器计算资源
-            cpu_usage = 0
-            memory_usage = 0
-            if status == "running":
-                try:
-                    stats = container.stats(stream=False)
-                    cpu_usage = calculate_cpu_usage(stats)
-                    memory_usage = calculate_memory_usage(stats)
-                except Exception as e:
-                    logger.error(f"获取容器资源使用情况失败 {container.id}: {str(e)}")
-                    cpu_usage = 0
-                    memory_usage = 0
-
             container_data = {
                 "id": container.id,
                 "name": name,
                 "network": network_mode,
                 "status": status,
                 "ports": port_mappings,
-                "cpu_usage": cpu_usage,
-                "memory_usage": memory_usage
+                "cpu_usage": 0,  # 初始值为0，资源统计将通过单独的API获取
+                "memory_usage": 0
             }
 
             if status in grouped:
@@ -109,13 +107,46 @@ def index():
             else:
                 grouped["other"].append(container_data)
 
-        return render_template("index.html", grouped=grouped, refresh_interval=REFRESH_INTERVAL)
+        return jsonify({"success": True, "containers": grouped})
     except Exception as e:
-        logger.error(f"渲染主页失败: {str(e)}")
-        return render_template("error.html", message=f"获取容器信息失败: {str(e)}")
+        logger.error(f"获取容器列表失败: {str(e)}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/containers/stats")
+def get_containers_stats():
+    """API端点：获取运行中容器的资源统计信息"""
+    try:
+        containers = get_containers()
+        stats = {}
+
+        # 只获取运行中容器的资源统计
+        for container in containers:
+            if container.status != "running":
+                continue
+                
+            try:
+                container_stats = container.stats(stream=False)
+                cpu_usage = calculate_cpu_usage(container_stats)
+                memory_usage = calculate_memory_usage(container_stats)
+                
+                stats[container.id] = {
+                    "cpu_usage": cpu_usage,
+                    "memory_usage": memory_usage
+                }
+            except Exception as e:
+                logger.error(f"获取容器资源使用情况失败 {container.id}: {str(e)}")
+                stats[container.id] = {
+                    "cpu_usage": 0,
+                    "memory_usage": 0
+                }
+
+        return jsonify({"success": True, "stats": stats})
+    except Exception as e:
+        logger.error(f"获取容器资源统计失败: {str(e)}")
+        return jsonify({"success": False, "error": str(e)})
 
 def calculate_cpu_usage(stats):
-    """计算CPU使用率"""
+    """计算CPU使用率 - 简化计算"""
     try:
         cpu_delta = stats["cpu_stats"]["cpu_usage"]["total_usage"] - stats["precpu_stats"]["cpu_usage"]["total_usage"]
         system_delta = stats["cpu_stats"]["system_cpu_usage"] - stats["precpu_stats"]["system_cpu_usage"]
@@ -128,7 +159,7 @@ def calculate_cpu_usage(stats):
         return 0
 
 def calculate_memory_usage(stats):
-    """计算内存使用率"""
+    """计算内存使用率 - 简化计算"""
     try:
         used_memory = stats["memory_stats"]["usage"]
         available_memory = stats["memory_stats"]["limit"]

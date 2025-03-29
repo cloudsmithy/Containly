@@ -252,6 +252,7 @@ body {
 /* 资源使用情况 */
 .resource-usage {
   margin: 10px 0;
+  display: none; /* 默认隐藏资源统计 */
 }
 
 .resource-bar {
@@ -360,6 +361,7 @@ body {
 .blacklist-link:hover {
   background-color: rgba(0,0,0,0.2);
 }
+
 /* 容器操作加载特效 */
 .card-loading {
   position: absolute;
@@ -406,4 +408,58 @@ body {
 
 .card-moving {
   animation: moveCard 0.5s forwards;
+}
+
+/* 主加载指示器 */
+.main-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  margin: 20px auto;
+  max-width: 300px;
+  background-color: rgba(0,0,0,0.1);
+  border-radius: 10px;
+}
+
+.main-loader .loader {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 15px;
+}
+
+.loader-text {
+  font-size: 1.1rem;
+  color: var(--text);
+}
+
+/* 资源统计控制 */
+.stats-control {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 90;
+}
+
+.toggle-stats-btn {
+  background-color: rgba(0,0,0,0.7);
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  transition: all 0.2s;
+}
+
+.toggle-stats-btn:hover {
+  background-color: rgba(0,0,0,0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+}
+
+/* 显示资源统计时的样式 */
+body.show-stats .resource-usage {
+  display: block;
 }
