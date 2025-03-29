@@ -183,12 +183,20 @@ a {
 
 /* 右上角竖排按钮 */
 .card-actions {
-  position: absolute;
+ position: absolute;
   top: 8px;
   right: 8px;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.card.show-actions .card-actions {
+  opacity: 1;
+  visibility: visible;
 }
 
 .action-btn {
@@ -213,7 +221,7 @@ a {
     <input type="text" id="host-ip" placeholder="例如 192.168.1.100" />
     <a href="/blacklist" class="blacklist-link">黑名单管理</a>
     <!-- 夜间模式按钮，初始显示“🌜”或“🌞”根据需要可手动改 -->
-    <button class="dark-toggle" id="darkBtn">🌜</button>
+    <button class="dark-toggle" id="darkBtn">🌙</button>
   </div>
 
   {% for status, containers in grouped.items() %}
@@ -393,12 +401,30 @@ a {
       });
     }
 
-    // 每 30 秒自动刷新
-    setInterval(() => {
-      location.reload();
-    }, 30000);
 
+function initCardToggleActions() {
+  document.querySelectorAll(".card").forEach(card => {
+    let isActionsVisible = false;
+
+    card.addEventListener("click", (e) => {
+      if (e.target.classList.contains('action-btn')) return;
+      isActionsVisible = !isActionsVisible;
+      card.classList.toggle("show-actions", isActionsVisible);
+    });
+
+    card.addEventListener("mouseenter", () => {
+      card.classList.add("show-actions");
+    });
+
+    card.addEventListener("mouseleave", () => {
+      if (!isActionsVisible) {
+        card.classList.remove("show-actions");
+      }
+    });
+  });
+}
     // DOM 加载后
+
     window.addEventListener("DOMContentLoaded", () => {
       // 恢复夜间模式
       const theme = localStorage.getItem("theme");
@@ -417,6 +443,8 @@ a {
       initProtocolToggle();
       initBlacklist();
       updateLinks();
+      initCardToggleActions();
+      initCardToggleActions(); // ← 新增这一行
 
       ipInput.addEventListener("input", updateLinks);
     });
