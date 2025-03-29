@@ -213,6 +213,7 @@ function createContainerCard(container) {
       <button class="action-btn stop-btn" data-id="${container.id}" title="停止容器">🛑</button>
       <button class="action-btn restart-btn" data-id="${container.id}" title="重启容器">🔄</button>
       <button class="action-btn logs-btn" data-id="${container.id}" title="查看日志">📋</button>
+      <button class="action-btn terminal-btn" data-id="${container.id}" title="终端">💻</button>
     `;
   } else if (container.status === 'exited') {
     actionsHtml += `
@@ -482,6 +483,19 @@ function initContainerActionButtons(card) {
         });
     };
   }
+  
+  // 终端按钮
+  const terminalBtn = card.querySelector(".terminal-btn");
+  if (terminalBtn) {
+    terminalBtn.onclick = (e) => {
+      e.stopPropagation(); // 阻止事件冒泡
+      const containerId = terminalBtn.dataset.id;
+      if (!containerId) return;
+      
+      // 跳转到终端页面
+      window.open(`/terminal/${containerId}`, '_blank');
+    };
+  }
 }
 
 // 初始化协议切换
@@ -703,6 +717,7 @@ function updateCardForNewStatus(card, newStatus) {
       <button class="action-btn stop-btn" data-id="${containerId}" title="停止容器">🛑</button>
       <button class="action-btn restart-btn" data-id="${containerId}" title="重启容器">🔄</button>
       <button class="action-btn logs-btn" data-id="${containerId}" title="查看日志">📋</button>
+      <button class="action-btn terminal-btn" data-id="${containerId}" title="终端">💻</button>
       <button class="action-btn protocol-btn" title="切换协议">🔐</button>
       <button class="action-btn blacklist-btn" title="加入黑名单">🚫</button>
     `;
