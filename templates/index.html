@@ -4,232 +4,7 @@
   <meta charset="UTF-8" />
   <title>Containly 容器面板</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-:root {
-  --bg: linear-gradient(145deg, #e0eafc, #cfdef3);
-  --text: #2c3e50;
-  --tag-bridge: #17a2b8;
-  --tag-host: #6f42c1;
-  --status-open: #28a745;
-  --status-closed: #dc3545;
-  --copy-bg: #fff3cd;
-}
-
-body.dark {
-  --bg: #121212;
-  --text: #f0f0f0;
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  padding: 2rem;
-  font-family: "Segoe UI", sans-serif;
-  background-color: var(--bg);
-  color: var(--text);
-  transition: background 0.3s, color 0.3s;
-}
-
-h1 {
-  font-size: 1.8rem;
-  margin-bottom: 1rem;
-}
-
-input[type="text"] {
-  padding: 0.5rem;
-  font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  width: 240px;
-  outline: none;
-}
-
-.top-bar {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.dark-toggle {
-  margin-left: auto;
-  cursor: pointer;
-  padding: 6px 10px;
-  border: 1px solid #999;
-  border-radius: 6px;
-  background-color: transparent;
-  font-size: 1rem;
-  transition: background 0.2s;
-}
-.dark-toggle:hover {
-  background-color: rgba(255,255,255,0.3);
-}
-
-.blacklist-link {
-  text-decoration: none;
-  color: inherit;
-  border: 1px solid #999;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 1rem;
-  transition: background 0.2s;
-}
-.blacklist-link:hover {
-  background-color: rgba(255,255,255,0.3);
-}
-
-.section {
-  margin-top: 2rem;
-}
-
-.section h2 {
-  font-size: 1.4rem;
-  margin-bottom: 0.5rem;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1rem;
-}
-
-.card {
-  position: relative;
-  padding: 1.5rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  color: #fff;
-  animation: fadeIn 0.6s ease;
-}
-
-/* 渐变背景色 */
-.card:nth-child(6n+1) { background: linear-gradient(135deg, #74ebd5, #acb6e5); }
-.card:nth-child(6n+2) { background: linear-gradient(135deg, #fbc2eb, #a6c1ee); }
-.card:nth-child(6n+3) { background: linear-gradient(135deg, #ffecd2, #fcb69f); }
-.card:nth-child(6n+4) { background: linear-gradient(135deg, #c2e9fb, #a1c4fd); }
-.card:nth-child(6n+5) { background: linear-gradient(135deg, #f6d365, #fda085); }
-.card:nth-child(6n+6) { background: linear-gradient(135deg, #d4fc79, #96e6a1); }
-
-.card h3 {
-  font-size: 1.2rem;
-  margin-bottom: 0.4rem;
-}
-
-.tag {
-  background-color: var(--tag-bridge);
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  display: inline-block;
-}
-
-.tag.host {
-  background-color: var(--tag-host);
-}
-
-.port-list {
-  margin-top: 1rem;
-}
-
-.port-item {
-  margin-bottom: 0.5rem;
-  font-size: 0.95rem;
-}
-
-.copyable {
-  background-color: rgba(255,255,255,0.25);
-  padding: 2px 6px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  font-family: monospace;
-  transition: background 0.2s;
-}
-.copyable:hover {
-  background-color: var(--copy-bg);
-  color: #000;
-}
-
-a {
-  color: #fff;
-  text-decoration: underline;
-  font-weight: 500;
-}
-
-.status-indicator {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  margin-left: 6px;
-}
-
-.toast {
-  padding: 8px 16px;
-  margin-bottom: 8px;
-  color: #fff;
-  background-color: rgba(0,0,0,0.7);
-  border-radius: 8px;
-  animation: fadeToast 0.5s ease-in-out;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-  font-size: 0.9rem;
-}
-
-@keyframes fadeToast {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-
-.open {
-  background-color: var(--status-open);
-}
-.closed {
-  background-color: var(--status-closed);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* 右上角竖排按钮 */
-.card-actions {
- position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.3s, visibility 0.3s;
-}
-
-.card.show-actions .card-actions {
-  opacity: 1;
-  visibility: visible;
-}
-
-.action-btn {
-  cursor: pointer;
-  border: 1px solid #999;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  background-color: transparent;
-  padding: 4px 8px;
-  color: #fff;
-  transition: background 0.2s;
-}
-.action-btn:hover {
-  background-color: rgba(255,255,255,0.3);
-}
-  </style>
+  <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
 <div id="toast-container" style="
@@ -238,16 +13,16 @@ a {
   right: 10px;
   z-index: 9999;
 "></div>
-  <div class="top-bar">
-    <h1>Containly 容器面板</h1>
-    <label for="host-ip">宿主机 IP：</label>
-    <input type="text" id="host-ip" placeholder="例如 192.168.1.100" />
-    <a href="/blacklist" class="blacklist-link">黑名单管理</a>
-    <!-- 夜间模式按钮，初始显示“🌜”或“🌞”根据需要可手动改 -->
-    <button class="dark-toggle" id="darkBtn">🌙</button>
-  </div>
 
-  {% for status, containers in grouped.items() %}
+<div class="top-bar">
+  <h1>Containly 容器面板</h1>
+  <label for="host-ip">宿主机 IP：</label>
+  <input type="text" id="host-ip" placeholder="例如 192.168.1.100" />
+  <a href="/blacklist" class="blacklist-link">黑名单管理</a>
+  <button class="dark-toggle" id="darkBtn">🌙</button>
+</div>
+
+{% for status, containers in grouped.items() %}
 <div class="section" data-status="{{ status }}">
   <h2>{{ status|capitalize }} 容器</h2>
   <div class="grid">
@@ -258,17 +33,35 @@ a {
          data-protocol="http">
       <div class="card-actions">
         {% if c.status == "running" %}
-        <button class="action-btn stop-btn" data-id="{{ c.id }}">🛑</button>
-        <button class="action-btn restart-btn" data-id="{{ c.id }}">🔄</button>
+        <button class="action-btn stop-btn" data-id="{{ c.id }}" title="停止容器">🛑</button>
+        <button class="action-btn restart-btn" data-id="{{ c.id }}" title="重启容器">🔄</button>
+        <button class="action-btn logs-btn" data-id="{{ c.id }}" title="查看日志">📋</button>
         {% elif c.status == "exited" %}
-        <button class="action-btn start-btn" data-id="{{ c.id }}">▶️</button>
+        <button class="action-btn start-btn" data-id="{{ c.id }}" title="启动容器">▶️</button>
+        <button class="action-btn logs-btn" data-id="{{ c.id }}" title="查看日志">📋</button>
         {% endif %}
-        <button class="action-btn protocol-btn">🔐</button>
-        <button class="action-btn blacklist-btn">🚫</button>
+        <button class="action-btn protocol-btn" title="切换协议">🔐</button>
+        <button class="action-btn blacklist-btn" title="加入黑名单">🚫</button>
       </div>
 
       <h3>{{ c.name }}</h3>
       <div class="tag {{ 'host' if c.network == 'host' else '' }}">{{ c.network }}</div>
+      
+      <!-- 资源使用情况 -->
+      {% if c.status == "running" %}
+      <div class="resource-usage">
+        <div class="resource-bar">
+          <div class="resource-fill" style="width: {{ c.cpu_usage }}%"></div>
+        </div>
+        <div class="resource-text">CPU: {{ c.cpu_usage }}%</div>
+        
+        <div class="resource-bar">
+          <div class="resource-fill" style="width: {{ c.memory_usage }}%"></div>
+        </div>
+        <div class="resource-text">内存: {{ c.memory_usage }}%</div>
+      </div>
+      {% endif %}
+      
       <div class="port-list">
         {% for p in c.ports %}
         <div class="port-item" data-host="{{ p.host_port }}" data-container="{{ p.container_port }}">
@@ -278,268 +71,30 @@ a {
           <span class="status-indicator" title="检测中..."></span>
         </div>
         {% endfor %}
+        
+        {% if not c.ports %}
+        <div class="port-item">无端口映射</div>
+        {% endif %}
       </div>
     </div>
     {% endfor %}
+    
+    {% if not containers %}
+    <div class="empty-state">没有{{ status }}状态的容器</div>
+    {% endif %}
   </div>
 </div>
 {% endfor %}
 
+<!-- 日志查看器 -->
+<div class="log-viewer">
+  <div class="log-header">
+    <h2>容器日志</h2>
+    <button class="log-close">&times;</button>
+  </div>
+  <div class="log-content"></div>
+</div>
 
-  <script>
-    const ipInput = document.getElementById("host-ip");
-    ipInput.value = localStorage.getItem("host_ip") || "";
-
-    /* 夜间模式: 用日/月图标 */
-    function toggleDark() {
-      document.body.classList.toggle("dark");
-      const isDark = document.body.classList.contains("dark");
-      localStorage.setItem("theme", isDark ? "dark" : "light");
-      document.getElementById("darkBtn").textContent = isDark ? "☀️" : "🌙";
-    }
-
-    /* 更新端口链接 + 在线检测 */
-function updateLinks() {
-  const ip = ipInput.value.trim();
-  localStorage.setItem("host_ip", ip);
-
-  document.querySelectorAll(".card").forEach(card => {
-    const protocol = card.dataset.protocol || "http";
-    const containerName = card.dataset.containerName;
-
-    card.querySelectorAll(".port-item").forEach(item => {
-      const port = item.dataset.host;
-      const link = item.querySelector(".port-link");
-      const indicator = item.querySelector(".status-indicator");
-
-      if (ip && port) {
-        const url = `${protocol}://${ip}:${port}`;
-        link.href = url;
-        link.textContent = url;
-
-        fetch(url, { method: 'HEAD', mode: 'no-cors' })
-          .then(() => {
-            indicator.classList.add("open");
-            indicator.classList.remove("closed");
-            indicator.title = "端口在线";
-          })
-          .catch(() => {
-            indicator.classList.add("closed");
-            indicator.classList.remove("open");
-            indicator.title = "端口不可达";
-          });
-      } else {
-        link.href = "#";
-        link.textContent = "跳转";
-        indicator.classList.remove("open", "closed");
-        indicator.title = "";
-      }
-    });
-  });
-}
-
-    /* 复制端口号 */
-    function enableCopy() {
-      document.querySelectorAll(".copyable").forEach(el => {
-        el.addEventListener("click", () => {
-          navigator.clipboard.writeText(el.textContent.trim());
-          el.style.backgroundColor = "#c1f0d1";
-          setTimeout(() => {
-            el.style.backgroundColor = "";
-          }, 600);
-        });
-      });
-    }
-
-    /* 启动/停止/重启 */
-function initContainerActions() {
-  function moveCard(containerId, fromStatus, toStatus) {
-    const card = document.querySelector(`.card[data-container-id="${containerId}"]`);
-    const fromSection = document.querySelector(`.section[data-status="${fromStatus}"] .grid`);
-    const toSection = document.querySelector(`.section[data-status="${toStatus}"] .grid`);
-
-    if (card && toSection) {
-      card.remove();
-      toSection.prepend(card);
-    }
-  }
-
-function refreshContainerStatus(containerId) {
-  fetch(`/container/${containerId}/status`)
-    .then(res => res.json())
-    .then(data => {
-      const running = data.running;
-      const card = document.querySelector(`.card[data-container-id="${containerId}"]`);
-      if (!card) return;
-
-      // 重新设置按钮组
-      const actionsDiv = card.querySelector(".card-actions");
-      actionsDiv.innerHTML = running ? `
-        <button class="action-btn stop-btn" data-id="${containerId}">🛑</button>
-        <button class="action-btn restart-btn" data-id="${containerId}">🔄</button>
-        <button class="action-btn protocol-btn">${card.dataset.protocol === "http" ? "🔐" : "🔓"}</button>
-        <button class="action-btn blacklist-btn">🚫</button>
-      ` : `
-        <button class="action-btn start-btn" data-id="${containerId}">▶️</button>
-        <button class="action-btn protocol-btn">${card.dataset.protocol === "http" ? "🔐" : "🔓"}</button>
-        <button class="action-btn blacklist-btn">🚫</button>
-      `;
-
-      // 重新绑定事件（按钮事件）
-      initContainerActions();
-      initProtocolToggle();
-      initBlacklist();
-
-      // 更新容器所在区域
-      const fromStatus = running ? "exited" : "running";
-      const toStatus = running ? "running" : "exited";
-      const fromSection = document.querySelector(`.section[data-status="${fromStatus}"] .grid`);
-      const toSection = document.querySelector(`.section[data-status="${toStatus}"] .grid`);
-
-      if (fromSection && toSection) {
-        card.remove();
-        toSection.prepend(card);
-      }
-
-      // 确保链接状态正确
-      updateLinks();
-    })
-    .catch(err => console.error("刷新状态失败", err));
-}
-
-  function performAction(containerId, action, successMsg) {
-    fetch(`/container/${containerId}/${action}`, { method: "POST" })
-      .then(res => {
-        if (res.ok) {
-          showToast(` ${successMsg}`);
-          setTimeout(() => refreshContainerStatus(containerId), 1000);
-        } else throw new Error(`${action}操作失败`);
-      })
-      .catch(err => showToast(`❌ ${err.message}`));
-  }
-
-  document.querySelectorAll(".start-btn").forEach(btn => {
-    btn.onclick = () => performAction(btn.dataset.id, "start", "容器已启动");
-  });
-
-  document.querySelectorAll(".stop-btn").forEach(btn => {
-    btn.onclick = () => performAction(btn.dataset.id, "stop", "容器已停止");
-  });
-
-  document.querySelectorAll(".restart-btn").forEach(btn => {
-    btn.onclick = () => performAction(btn.dataset.id, "restart", "容器已重启");
-  });
-}
-
-
-    /* HTTP/HTTPS切换 + 按钮文字 */
-function initProtocolToggle() {
-  document.querySelectorAll(".card").forEach(card => {
-    const containerName = card.dataset.containerName;
-    const btn = card.querySelector(".protocol-btn");
-
-    // 加载保存的协议状态
-    const storedProtocol = localStorage.getItem(`protocol_${containerName}`) || "http";
-    card.dataset.protocol = storedProtocol;
-    btn.textContent = storedProtocol === "http" ? "🔐" : "🔓";
-
-    btn.addEventListener("click", () => {
-      const current = card.dataset.protocol;
-      const newProtocol = current === "http" ? "https" : "http";
-      card.dataset.protocol = newProtocol;
-      btn.textContent = newProtocol === "http" ? "🔐" : "🔓";
-
-      // 保存到 localStorage
-      localStorage.setItem(`protocol_${containerName}`, newProtocol);
-
-      updateLinks();
-    });
-  });
-}
-
-
-    /* 拉黑容器 (前端 localStorage) */
-    function initBlacklist() {
-      const blacklisted = JSON.parse(localStorage.getItem("blacklisted_containers") || "[]");
-
-      // 隐藏已拉黑的卡片
-      document.querySelectorAll(".card").forEach(card => {
-        const name = card.dataset.containerName;
-        if (blacklisted.includes(name)) {
-          card.style.display = "none";
-        }
-      });
-
-      // 点击拉黑
-      document.querySelectorAll(".blacklist-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          const card = btn.closest(".card");
-          const name = card.dataset.containerName;
-          if (!blacklisted.includes(name)) {
-            blacklisted.push(name);
-            localStorage.setItem("blacklisted_containers", JSON.stringify(blacklisted));
-          }
-          card.style.display = "none";
-        });
-      });
-    }
-
-
-function initCardToggleActions() {
-  document.querySelectorAll(".card").forEach(card => {
-    let isActionsVisible = false;
-
-    card.addEventListener("click", (e) => {
-      if (e.target.classList.contains('action-btn')) return;
-      isActionsVisible = !isActionsVisible;
-      card.classList.toggle("show-actions", isActionsVisible);
-    });
-
-    card.addEventListener("mouseenter", () => {
-      card.classList.add("show-actions");
-    });
-
-    card.addEventListener("mouseleave", () => {
-      if (!isActionsVisible) {
-        card.classList.remove("show-actions");
-      }
-    });
-  });
-}
-
-function showToast(msg, duration = 500) {
-  const toast = document.createElement("div");
-  toast.className = "toast";
-  toast.textContent = msg;
-  document.getElementById("toast-container").appendChild(toast);
-  setTimeout(() => toast.remove(), duration);
-}
-
-    // DOM 加载后
-
-    window.addEventListener("DOMContentLoaded", () => {
-      // 恢复夜间模式
-      const theme = localStorage.getItem("theme");
-      if (theme === "dark") {
-        document.body.classList.add("dark");
-        document.getElementById("darkBtn").textContent = "☀️";
-      } else {
-        document.getElementById("darkBtn").textContent = "🌙";
-      }
-
-      // 绑定夜间模式切换
-      document.getElementById("darkBtn").addEventListener("click", toggleDark);
-
-      enableCopy();
-      initContainerActions();
-      initProtocolToggle();
-      initBlacklist();
-      updateLinks();
-      initCardToggleActions();
-      initCardToggleActions(); // ← 新增这一行
-
-      ipInput.addEventListener("input", updateLinks);
-    });
-  </script>
+<script src="/static/js/main.js"></script>
 </body>
 </html>

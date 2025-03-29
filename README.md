@@ -13,17 +13,15 @@
 ```bash
 docker run -d \
   --name containly \
-  -p 5000:5000 \
+  -p 5001:5001 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   cloudsmithy/containly
 ```
 
-````
-
 访问：
 
 ```
-http://localhost:5000
+http://localhost:5001
 ```
 
 ### 方式二：使用 Docker Compose（推荐开发/可维护）
@@ -34,7 +32,7 @@ services:
   containly:
     image: cloudsmithy/containly
     ports:
-      - "5000:5000"
+      - "5001:5001"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
@@ -82,7 +80,15 @@ python app.py
 ```
 containly/
 ├── app.py                 # Flask 后端
-├── templates/index.html   # 核心 UI 模板
+├── templates/             # 模板目录
+│   ├── index.html         # 主页模板
+│   ├── error.html         # 错误页面
+│   └── blacklist.html     # 黑名单管理页面
+├── static/                # 静态文件目录
+│   ├── css/
+│   │   └── style.css      # CSS 样式
+│   └── js/
+│       └── main.js        # JavaScript 代码
 ├── Dockerfile             # 容器构建定义
 ├── docker-compose.yml     # Compose 部署配置
 └── README.md
@@ -103,5 +109,3 @@ MIT License - 自由使用、修改与部署，致谢请保留原始作者。
 ---
 
 > Made with ❤️ by [cloudsmithy](https://github.com/cloudsmithy)
-
-````

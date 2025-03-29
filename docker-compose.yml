@@ -1,12 +1,15 @@
+version: "3.8"
 services:
-  docker-dashboard:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  containly:
+    image: cloudsmithy/containly
     ports:
-      - "5000:5000"
+      - "5001:5001"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - FLASK_ENV=production
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
