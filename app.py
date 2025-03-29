@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, jsonify
 import docker
 
 app = Flask(__name__)
@@ -33,6 +33,7 @@ def index():
                         })
 
         container_data = {
+            "id": container.id,
             "name": name,
             "network": network_mode,
             "status": status,
@@ -46,6 +47,37 @@ def index():
 
     return render_template("index.html", grouped=grouped)
 
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+@app.route("/blacklist")
+def blacklist_page():
+    # 黑名单管理界面；前端 LocalStorage 存储被拉黑的容器
+    return render_template("blacklist.html")
 
+@app.route("/container/<container_id>/start", methods=["POST"])
+def start_container(container_id):
+    try:
+        container = client.containers.get(container_id)
+        container.start()
+        return jsonify({"status": "started"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/container/<container_id>/stop", methods=["POST"])
+def stop_container(container_id):
+    try:
+        container = client.containers.get(container_id)
+        container.stop()
+        return jsonify({"status": "stopped"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/container/<container_id>/restart", methods=["POST"])
+def restart_container(container_id):
+    try:
+        container = client.containers.get(container_id)
+        container.restart()
+        return jsonify({"status": "restarted"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
