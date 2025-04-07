@@ -26,7 +26,12 @@
       padding: 10px;
       margin-bottom: 10px;
       background-color: rgba(0,0,0,0.05);
-      border-radius: 5px;
+      border-radius: 8px;
+      color: var(--text);
+    }
+    
+    body.dark .blacklist-item {
+      background-color: rgba(255,255,255,0.1);
     }
     
     .remove-btn {
@@ -42,7 +47,12 @@
       text-align: center;
       padding: 20px;
       background-color: rgba(0,0,0,0.05);
-      border-radius: 5px;
+      border-radius: 8px;
+      color: var(--text);
+    }
+    
+    body.dark .empty-list {
+      background-color: rgba(255,255,255,0.1);
     }
     
     .back-link {
@@ -54,8 +64,16 @@
       transition: background-color 0.3s;
     }
     
+    body.dark .back-link {
+      background-color: rgba(255,255,255,0.1);
+    }
+    
     .back-link:hover {
       background-color: rgba(0,0,0,0.2);
+    }
+    
+    body.dark .back-link:hover {
+      background-color: rgba(255,255,255,0.2);
     }
     
     .clear-all {
@@ -66,13 +84,29 @@
       border-radius: 4px;
       cursor: pointer;
     }
+    
+    h1 {
+      color: var(--text);
+    }
+    
+    .dark-toggle {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 5px;
+      color: var(--text);
+    }
   </style>
 </head>
 <body>
   <div class="blacklist-container">
     <div class="blacklist-header">
       <h1>黑名单管理</h1>
-      <a href="/" class="back-link">返回首页</a>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <a href="/" class="back-link">返回首页</a>
+        <button class="dark-toggle" id="darkBtn">🌙</button>
+      </div>
     </div>
     
     <div id="blacklist-items">
@@ -85,7 +119,23 @@
   </div>
   
   <script>
+    // 初始化主题
+    function initTheme() {
+      const theme = localStorage.getItem("theme");
+      const darkBtn = document.getElementById("darkBtn");
+      
+      if (theme === "dark") {
+        document.body.classList.add("dark");
+        darkBtn.textContent = "☀️";
+      } else {
+        darkBtn.textContent = "🌙";
+      }
+    }
+    
     document.addEventListener("DOMContentLoaded", () => {
+      // 初始化主题
+      initTheme();
+      
       const blacklistedContainers = JSON.parse(localStorage.getItem("blacklisted_containers") || "[]");
       const blacklistItems = document.getElementById("blacklist-items");
       
@@ -128,6 +178,15 @@
           localStorage.setItem("blacklisted_containers", "[]");
           blacklistItems.innerHTML = '<div class="empty-list">黑名单为空</div>';
         }
+      });
+      
+      // 主题切换按钮
+      const darkBtn = document.getElementById("darkBtn");
+      darkBtn.addEventListener("click", () => {
+        document.body.classList.toggle("dark");
+        const isDark = document.body.classList.contains("dark");
+        localStorage.setItem("theme", isDark ? "dark" : "light");
+        darkBtn.textContent = isDark ? "☀️" : "🌙";
       });
     });
   </script>

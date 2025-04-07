@@ -20,7 +20,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # 环境变量配置
 DEBUG = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
 PORT = int(os.environ.get('PORT', 5001))
-REFRESH_INTERVAL = int(os.environ.get('REFRESH_INTERVAL', 30))
+REFRESH_INTERVAL = int(os.environ.get('REFRESH_INTERVAL', 0))  # 设置为0表示禁用自动刷新
 LOG_LINES = int(os.environ.get('LOG_LINES', 100))
 
 # 容器数据缓存

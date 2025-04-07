@@ -210,7 +210,6 @@
   </style>
 </head>
 <body class="dark">
-<div class="connection-status" id="connection-status">连接中...</div>
 <div id="debug-info"></div>
 
 <div class="top-bar">
@@ -223,6 +222,7 @@
     <div class="terminal-info">
       <span id="container-name">{{ container_name }}</span>
       <span id="container-id">{{ container_id }}</span>
+      <span id="connection-status" style="margin-left: 10px; font-size: 0.8rem; color: #FFC107;">连接中...</span>
     </div>
     <div class="terminal-actions">
       <button id="clear-terminal" title="清空终端">清空</button>
@@ -410,9 +410,23 @@
     return result;
   }
   
+  // 初始化主题
+  function initTheme() {
+    const theme = localStorage.getItem("theme");
+    
+    if (theme === "dark") {
+      document.body.classList.add("dark");
+    } else if (theme === "light") {
+      document.body.classList.remove("dark");
+    }
+  }
+  
   // 页面加载完成后执行
   document.addEventListener("DOMContentLoaded", () => {
     debug('页面加载完成');
+    
+    // 初始化主题
+    initTheme();
     
     // 初始化终端
     addCommandOutput(`欢迎使用 Containly 终端\n连接到容器: ${containerName}\n`);
