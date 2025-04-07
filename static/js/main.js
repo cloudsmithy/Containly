@@ -15,10 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 异步加载容器数据
   loadContainers();
   
-  // 自动刷新 - 只刷新容器数据，不刷新整个页面
-  setInterval(() => {
-    loadContainers();
-  }, 30000); // 30秒
+  // 自动刷新功能已禁用
 });
 
 // 初始化主题
