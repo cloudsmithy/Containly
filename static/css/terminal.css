@@ -1,24 +1,35 @@
-/* 终端页面样式 */
-.terminal-container {
-  background-color: #1e1e1e;
-  border-radius: 8px;
-  overflow: hidden;
-  margin: 20px auto;
-  max-width: 1000px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+/* 终端样式 */
+body {
+  background-color: #2b2b2b;
+  color: #f0f0f0;
+  margin: 0;
+  padding: 0;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 120px);
+}
+
+.terminal-container {
+  background-color: #1e1e1e;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .terminal-header {
   background-color: #333;
   color: white;
-  padding: 10px 15px;
+  padding: 8px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #444;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 .terminal-info {
@@ -38,113 +49,145 @@
 }
 
 .terminal-actions button {
-  background-color: #555;
+  background-color: #444;
   color: white;
   border: none;
-  padding: 5px 10px;
-  border-radius: 4px;
+  padding: 4px 8px;
+  border-radius: 3px;
   cursor: pointer;
   transition: background-color 0.2s;
+  font-size: 0.9rem;
+  margin-left: 5px;
 }
 
 .terminal-actions button:hover {
-  background-color: #666;
+  background-color: #555;
 }
 
-#terminal {
+.command-history {
   flex: 1;
   padding: 10px;
-  overflow: auto;
-}
-
-.terminal-footer {
-  background-color: #333;
-  padding: 10px 15px;
-  border-top: 1px solid #444;
+  overflow-y: auto;
+  background-color: #1e1e1e;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .command-input-container {
   display: flex;
-  gap: 10px;
+  padding: 10px;
+  background-color: #252525;
+  border-top: 1px solid #444;
+  align-items: center;
+}
+
+.command-prompt {
+  color: #4CAF50;
+  font-weight: bold;
+  margin-right: 8px;
+  white-space: nowrap;
 }
 
 #command-input {
   flex: 1;
-  background-color: #222;
-  color: white;
-  border: 1px solid #555;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-family: monospace;
+  background-color: transparent;
+  color: #f0f0f0;
+  border: none;
+  outline: none;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  padding: 0;
 }
 
 #send-command {
-  background-color: #4CAF50;
+  background-color: #375a7f;
   color: white;
   border: none;
-  padding: 8px 15px;
-  border-radius: 4px;
+  padding: 6px 12px;
+  margin-left: 8px;
+  border-radius: 3px;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 #send-command:hover {
-  background-color: #45a049;
+  background-color: #446e9b;
 }
 
-.terminal-help {
-  margin-top: 8px;
-  color: #888;
-  font-size: 0.8rem;
-  text-align: center;
+.command-line {
+  margin: 0;
+  padding: 2px 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.command-text {
+  color: #f0f0f0;
+}
+
+.command-output {
+  color: #bbb;
+  margin: 0 0 10px 0;
+  padding: 2px 0;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .back-link {
-  color: var(--text);
+  color: #ddd;
   text-decoration: none;
   padding: 5px 10px;
-  background-color: rgba(0,0,0,0.1);
-  border-radius: 4px;
+  background-color: rgba(255,255,255,0.1);
+  border-radius: 3px;
   transition: background-color 0.3s;
 }
 
 .back-link:hover {
-  background-color: rgba(0,0,0,0.2);
+  background-color: rgba(255,255,255,0.2);
+}
+
+.top-bar {
+  background-color: #333;
+  padding: 10px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.top-bar h1 {
+  color: #f0f0f0;
+  margin: 0;
+  font-size: 1.2rem;
 }
 
 /* 暗黑模式适配 */
+body.dark {
+  background-color: #1a1a1a;
+}
+
 body.dark .terminal-container {
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  background-color: #1e1e1e;
 }
 
-body.dark #command-input {
-  background-color: #111;
+body.dark .terminal-header {
+  background-color: #2d2d2d;
+  border-bottom-color: #3d3d3d;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .terminal-container {
-    height: calc(100vh - 150px);
-    margin: 10px;
-  }
-  
-  .terminal-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  
-  .terminal-actions {
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-  }
-  
-  .command-input-container {
-    flex-direction: column;
-  }
-  
-  #send-command {
-    width: 100%;
-  }
+body.dark .top-bar {
+  background-color: #2d2d2d;
+}
+
+body.dark .terminal-actions button {
+  background-color: #3d3d3d;
+}
+
+body.dark .terminal-actions button:hover {
+  background-color: #4d4d4d;
+}
+
+body.dark .command-input-container {
+  background-color: #252525;
+  border-top-color: #3d3d3d;
 }

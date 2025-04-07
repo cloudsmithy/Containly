@@ -69,8 +69,8 @@ docker-compose up -d
 ```bash
 git clone https://github.com/cloudsmithy/containly.git
 cd containly
-pip install flask docker
-python app.py
+pip install -r requirements.txt
+python run.py
 ```
 
 ---
@@ -79,18 +79,30 @@ python app.py
 
 ```
 containly/
-├── app.py                 # Flask 后端
+├── app/                   # 应用主目录
+│   ├── __init__.py        # 应用初始化
+│   ├── docker_client.py   # Docker客户端连接
+│   ├── routes/            # 路由模块
+│   │   ├── __init__.py
+│   │   ├── views.py       # 页面路由
+│   │   └── api.py         # API路由
+│   └── services/          # 服务模块
+│       ├── __init__.py
+│       └── container_service.py  # 容器服务
+├── static/                # 静态文件目录
+│   ├── css/
+│   │   ├── style.css      # 主样式
+│   │   └── colors.css     # 颜色样式
+│   └── js/
+│       └── main.js        # JavaScript代码
 ├── templates/             # 模板目录
 │   ├── index.html         # 主页模板
 │   ├── error.html         # 错误页面
 │   └── blacklist.html     # 黑名单管理页面
-├── static/                # 静态文件目录
-│   ├── css/
-│   │   └── style.css      # CSS 样式
-│   └── js/
-│       └── main.js        # JavaScript 代码
+├── run.py                 # 应用入口
+├── requirements.txt       # 依赖列表
 ├── Dockerfile             # 容器构建定义
-├── docker-compose.yml     # Compose 部署配置
+├── docker-compose.yml     # Compose部署配置
 └── README.md
 ```
 

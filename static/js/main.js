@@ -188,21 +188,31 @@ function renderContainerGroup(containers, status) {
     return;
   }
   
-  containers.forEach(container => {
-    const card = createContainerCard(container);
+  // 清空现有内容
+  grid.innerHTML = '';
+  
+  // 为每个状态组使用独立的索引计数器
+  containers.forEach((container, index) => {
+    console.log(`渲染 ${status} 容器: ${container.name}, 索引: ${index}`);
+    const card = createContainerCard(container, status, index);
     grid.appendChild(card);
   });
 }
 
 // 创建容器卡片
-function createContainerCard(container) {
-  console.log("创建容器卡片:", container.name, container.status);
+function createContainerCard(container, status, index) {
+  console.log("创建容器卡片:", container.name, container.status, "状态:", status, "索引:", index);
   
   const card = document.createElement('div');
   card.className = 'card';
   card.dataset.containerId = container.id;
   card.dataset.containerName = container.name;
   card.dataset.protocol = 'http';
+  card.dataset.status = status;
+  card.dataset.index = index % 6;
+  
+  // 设置卡片的颜色类
+  card.classList.add(`${status}-card-${index % 6}`);
   
   let actionsHtml = '<div class="card-actions">';
   if (container.status === 'running') {
@@ -662,8 +672,9 @@ function moveCardToSection(card, targetStatus) {
   // 获取容器ID和名称
   const containerId = card.dataset.containerId;
   const containerName = card.dataset.containerName;
+  const index = parseInt(card.dataset.index || "0"); // 保留索引
   
-  console.log(`移动容器: ${containerName} (${containerId}) 从 ${currentStatus} 到 ${targetStatus}`);
+  console.log(`移动容器: ${containerName} (${containerId}) 从 ${currentStatus} 到 ${targetStatus}, 索引: ${index}`);
   
   // 克隆卡片以保留其数据
   const clonedCard = card.cloneNode(true);
@@ -681,6 +692,20 @@ function moveCardToSection(card, targetStatus) {
   if (emptyState) {
     emptyState.remove();
   }
+  
+  // 更新卡片的状态和类名
+  clonedCard.dataset.status = targetStatus;
+  
+  // 移除所有颜色类
+  clonedCard.classList.remove(
+    'running-card-0', 'running-card-1', 'running-card-2', 'running-card-3', 'running-card-4', 'running-card-5',
+    'exited-card-0', 'exited-card-1', 'exited-card-2', 'exited-card-3', 'exited-card-4', 'exited-card-5',
+    'paused-card-0', 'paused-card-1', 'paused-card-2', 'paused-card-3', 'paused-card-4', 'paused-card-5',
+    'other-card-0', 'other-card-1', 'other-card-2', 'other-card-3', 'other-card-4', 'other-card-5'
+  );
+  
+  // 添加新的颜色类
+  clonedCard.classList.add(`${targetStatus}-card-${index}`);
   
   // 添加到目标分组
   targetGrid.appendChild(clonedCard);
