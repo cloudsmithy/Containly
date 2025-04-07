@@ -44,13 +44,19 @@ def get_all_containers():
             
             # 获取端口映射
             if container.attrs.get("NetworkSettings", {}).get("Ports"):
+                # 使用集合去重
+                unique_ports = set()
                 for container_port, host_ports in container.attrs["NetworkSettings"]["Ports"].items():
                     if host_ports:
                         for mapping in host_ports:
-                            container_info["ports"].append({
-                                "container_port": container_port.split("/")[0],
-                                "host_port": mapping["HostPort"]
-                            })
+                            # 创建唯一标识
+                            port_key = f"{container_port.split('/')[0]}-{mapping['HostPort']}"
+                            if port_key not in unique_ports:
+                                unique_ports.add(port_key)
+                                container_info["ports"].append({
+                                    "container_port": container_port.split("/")[0],
+                                    "host_port": mapping["HostPort"]
+                                })
             
             # 获取网络模式
             if container.attrs.get("HostConfig", {}).get("NetworkMode"):

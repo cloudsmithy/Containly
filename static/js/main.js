@@ -255,10 +255,15 @@ function createContainerCard(container, status, index) {
     container.ports.forEach(port => {
       portsHtml += `
         <div class="port-item" data-host="${port.host_port}" data-container="${port.container_port}">
-          Host: <span class="copyable host-port">${port.host_port}</span> |
-          Container: <span class="copyable container-port">${port.container_port}</span> –
-          <a href="#" class="port-link" target="_blank">跳转</a>
-          <span class="status-indicator" title="检测中..."></span>
+          <div class="port-info">
+            <span class="port-label">宿主机:</span> <span class="copyable host-port">${port.host_port}</span>
+            <span class="port-divider">|</span>
+            <span class="port-label">容器:</span> <span class="copyable container-port">${port.container_port}</span>
+            <span class="status-indicator" title="检测中..."></span>
+          </div>
+          <div class="port-link-container">
+            <a href="#" class="port-link" target="_blank"></a>
+          </div>
         </div>
       `;
     });
@@ -620,8 +625,9 @@ function updateLinks() {
     if (!card) return;
     
     const protocol = card.dataset.protocol || "http";
-    link.href = `${protocol}://${hostIP}:${hostPort}`;
-    link.textContent = `${protocol}://${hostIP}:${hostPort}`;
+    const url = `${protocol}://${hostIP}:${hostPort}`;
+    link.href = url;
+    link.innerHTML = `<i class="fas fa-external-link-alt"></i> ${url}`;
   });
 }
 

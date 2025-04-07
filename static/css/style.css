@@ -1,6 +1,8 @@
 :root {
   --bg: linear-gradient(145deg, #f5f7fa, #e6eef8);
   --text: #2c3e50;
+  --text-secondary: #6c757d;
+  --link-color: #007bff;
   --tag-bridge: #17a2b8;
   --tag-host: #6f42c1;
   --status-open: #28a745;
@@ -13,6 +15,8 @@
 body.dark {
   --bg: #121212;
   --text: #f0f0f0;
+  --text-secondary: #adb5bd;
+  --link-color: #5caefd;
   --card-shadow: 0 6px 12px rgba(0,0,0,0.25);
   --card-hover-shadow: 0 8px 16px rgba(0,0,0,0.35);
 }
@@ -503,4 +507,88 @@ body {
 /* 显示资源统计时的样式 */
 body.show-stats .resource-usage {
   display: block;
+}
+.port-item {
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 0.9em;
+  overflow: hidden;
+}
+
+.port-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+
+.port-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.port-divider {
+  margin: 0 5px;
+  color: var(--text-secondary);
+}
+
+.copyable {
+  cursor: pointer;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+
+.copyable:hover {
+  background: var(--copy-bg);
+}
+
+.port-link-container {
+  margin-top: 5px;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+
+.port-link {
+  display: inline-block;
+  color: var(--link-color);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  white-space: nowrap;
+  vertical-align: middle;
+  font-size: 0.9em;
+  padding: 3px 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.port-link:hover {
+  background: rgba(0, 0, 0, 0.1);
+  text-decoration: underline;
+}
+.status-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #ccc;
+  margin-left: 5px;
+  transition: background-color 0.3s;
+}
+
+.status-indicator.open {
+  background-color: var(--status-open);
+  box-shadow: 0 0 5px var(--status-open);
+}
+
+.status-indicator.closed {
+  background-color: var(--status-closed);
 }
