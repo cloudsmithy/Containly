@@ -55,27 +55,6 @@
       background-color: rgba(255,255,255,0.1);
     }
     
-    .back-link {
-      color: var(--text);
-      text-decoration: none;
-      padding: 5px 10px;
-      background-color: rgba(0,0,0,0.1);
-      border-radius: 4px;
-      transition: background-color 0.3s;
-    }
-    
-    body.dark .back-link {
-      background-color: rgba(255,255,255,0.1);
-    }
-    
-    .back-link:hover {
-      background-color: rgba(0,0,0,0.2);
-    }
-    
-    body.dark .back-link:hover {
-      background-color: rgba(255,255,255,0.2);
-    }
-    
     .clear-all {
       background-color: #6c757d;
       color: white;
@@ -86,15 +65,6 @@
     }
     
     h1 {
-      color: var(--text);
-    }
-    
-    .dark-toggle {
-      background: none;
-      border: none;
-      font-size: 1.5rem;
-      cursor: pointer;
-      padding: 5px;
       color: var(--text);
     }
   </style>
@@ -130,6 +100,13 @@
       } else {
         darkBtn.textContent = "🌙";
       }
+      
+      darkBtn.addEventListener("click", () => {
+        document.body.classList.toggle("dark");
+        const isDark = document.body.classList.contains("dark");
+        localStorage.setItem("theme", isDark ? "dark" : "light");
+        darkBtn.textContent = isDark ? "☀️" : "🌙";
+      });
     }
     
     document.addEventListener("DOMContentLoaded", () => {
@@ -178,15 +155,6 @@
           localStorage.setItem("blacklisted_containers", "[]");
           blacklistItems.innerHTML = '<div class="empty-list">黑名单为空</div>';
         }
-      });
-      
-      // 主题切换按钮
-      const darkBtn = document.getElementById("darkBtn");
-      darkBtn.addEventListener("click", () => {
-        document.body.classList.toggle("dark");
-        const isDark = document.body.classList.contains("dark");
-        localStorage.setItem("theme", isDark ? "dark" : "light");
-        darkBtn.textContent = isDark ? "☀️" : "🌙";
       });
     });
   </script>
