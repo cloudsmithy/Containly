@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>Containly 镜像管理</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/colors.css">
+</head>
+<body>
+<div id="toast-container" style="
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 9999;
+"></div>
+
+<div class="top-bar">
+  <h1>Containly 镜像管理</h1>
+  <a href="/" class="nav-link">返回容器面板</a>
+  <button class="dark-toggle" id="darkBtn">🌙</button>
+</div>
+
+<!-- 加载指示器 -->
+<div id="main-loader" class="main-loader">
+  <div class="loader"></div>
+  <div class="loader-text">加载镜像信息...</div>
+</div>
+
+<!-- 镜像列表区域 -->
+<div class="section">
+  <h2>Docker 镜像</h2>
+  <div class="grid" id="images-grid">
+    <div class="empty-state">加载中...</div>
+  </div>
+</div>
+
+<!-- 确认对话框 -->
+<div class="confirm-dialog" id="confirm-dialog">
+  <div class="confirm-dialog-content">
+    <h3>确认操作</h3>
+    <p id="confirm-message">确定要执行此操作吗？</p>
+    <div class="confirm-buttons">
+      <button id="confirm-cancel">取消</button>
+      <button id="confirm-ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 页面加载完成后执行
+document.addEventListener("DOMContentLoaded", () => {
+  // 初始化主题
+  initTheme();
+  
+  // 加载镜像数据
+  loadImages();
+  
+  // 初始化确认对话框
+  initConfirmDialog();
+});
+
+// 初始化主题
+function initTheme() {
+  const theme = localStorage.getItem("theme");
+  const darkBtn = document.getElementById("darkBtn");
+  
+  if (theme === "dark") {
+    document.body.classList.add("dark");
+    darkBtn.textContent = "☀️";
+  } else {
+    darkBtn.textContent = "🌙";
+  }
+  
+  darkBtn.addEventListener("click", () => {
+    document.body.classList.toggle("dark");
+    const isDark = document.body.classList.contains("dark");
+    localStorage.setItem("theme", isDark ? "dark" : "light");
+    darkBtn.textContent = isDark ? "☀️" : "🌙";
+  });
+}
+
+// 加载镜像数据
+function loadImages() {
+  // 显示加载指示器
+  document.getElementById("main-loader").style.display = "flex";
+  
+  fetch("/api/images/all")
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        // 渲染镜像数据
+        renderImages(data.images);
+        
+        // 隐藏加载指示器
+        document.getElementById("main-loader").style.display = "none";
+      } else {
+        showToast(`加载镜像失败: ${data.error || '未知错误'}`);
+      }
+    })
+    .catch(error => {
+      showToast(`请求错误: ${error.message}`);
+      document.getElementById("main-loader").style.display = "none";
+    });
+}
+
+// 渲染镜像数据
+function renderImages(images) {
+  const grid = document.getElementById("images-grid");
+  
+  if (!images || images.length === 0) {
+    grid.innerHTML = `<div class="empty-state">没有找到任何镜像</div>`;
+    return;
+  }
+  
+  // 清空现有内容
+  grid.innerHTML = '';
+  
+  // 为每个镜像创建卡片
+  images.forEach((image, index) => {
+    const card = createImageCard(image, index);
+    grid.appendChild(card);
+  });
+}
+
+// 创建镜像卡片
+function createImageCard(image, index) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.imageId = image.id;
+  card.dataset.index = index % 6;
+  
+  // 使用与容器卡片相同的颜色类，但使用 "other" 状态的颜色
+  card.classList.add(`other-card-${index % 6}`);
+  
+  // 判断是否有容器在使用此镜像
+  const hasContainers = image.containers && image.containers.length > 0;
+  
+  // 创建标签列表
+  let tagsHtml = '';
+  image.tags.forEach(tag => {
+    tagsHtml += `<div class="tag">${tag}</div>`;
+  });
+  
+  // 创建容器列表
+  let containersHtml = '';
+  if (hasContainers) {
+    containersHtml = '<div class="container-list"><h4>使用此镜像的容器:</h4><ul>';
+    image.containers.forEach(container => {
+      const statusClass = container.status === 'running' ? 'running' : 'stopped';
+      containersHtml += `<li class="${statusClass}">${container.name} (${container.status})</li>`;
+    });
+    containersHtml += '</ul></div>';
+  }
+  
+  card.innerHTML = `
+    <div class="card-actions">
+      <button class="action-btn delete-btn" data-id="${image.id}" title="删除镜像" ${hasContainers ? 'disabled' : ''}>🗑️</button>
+    </div>
+    <h3>${image.tags[0] || '无标签'}</h3>
+    <div class="image-id">${image.short_id}</div>
+    <div class="image-info">
+      <div class="image-size">大小: ${image.size} MB</div>
+      <div class="image-created">创建时间: ${new Date(image.created).toLocaleString()}</div>
+    </div>
+    ${containersHtml}
+  `;
+  
+  // 添加删除镜像事件
+  const deleteBtn = card.querySelector(".delete-btn");
+  if (deleteBtn && !hasContainers) {
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      
+      // 显示确认对话框
+      showConfirmDialog(
+        `确定要删除镜像 ${image.tags[0] || image.short_id} 吗？`,
+        () => {
+          deleteImage(image.id, card);
+        }
+      );
+    });
+  }
+  
+  return card;
+}
+
+// 删除镜像
+function deleteImage(imageId, card) {
+  // 添加加载特效
+  addLoadingOverlay(card, "正在删除镜像...");
+  
+  fetch(`/api/delete/image/${imageId}`)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`操作失败: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        // 添加淡出动画
+        card.classList.add("card-fading");
+        
+        // 延迟后移除卡片
+        setTimeout(() => {
+          card.remove();
+          
+          // 检查是否还有镜像
+          const grid = document.getElementById("images-grid");
+          if (grid.children.length === 0) {
+            grid.innerHTML = `<div class="empty-state">没有找到任何镜像</div>`;
+          }
+        }, 500);
+        
+        showToast("镜像删除成功");
+      } else {
+        // 移除加载特效
+        removeLoadingOverlay(card);
+        showToast(`删除失败: ${data.error || '未知错误'}`);
+      }
+    })
+    .catch(error => {
+      // 移除加载特效
+      removeLoadingOverlay(card);
+      showToast(`请求错误: ${error.message}`);
+      console.error("删除镜像错误:", error);
+    });
+}
+
+// 初始化确认对话框
+function initConfirmDialog() {
+  const dialog = document.getElementById("confirm-dialog");
+  const cancelBtn = document.getElementById("confirm-cancel");
+  const okBtn = document.getElementById("confirm-ok");
+  
+  // 取消按钮
+  cancelBtn.addEventListener("click", () => {
+    dialog.classList.remove("active");
+    // 清除确认回调
+    dialog.dataset.confirmCallback = "";
+  });
+  
+  // 确认按钮
+  okBtn.addEventListener("click", () => {
+    dialog.classList.remove("active");
+    
+    // 执行确认回调
+    const callbackName = dialog.dataset.confirmCallback;
+    if (callbackName && window[callbackName]) {
+      window[callbackName]();
+    }
+    
+    // 清除确认回调
+    dialog.dataset.confirmCallback = "";
+  });
+  
+  // 点击背景关闭
+  dialog.addEventListener("click", (e) => {
+    if (e.target === dialog) {
+      dialog.classList.remove("active");
+      // 清除确认回调
+      dialog.dataset.confirmCallback = "";
+    }
+  });
+  
+  // ESC 键关闭
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && dialog.classList.contains("active")) {
+      dialog.classList.remove("active");
+      // 清除确认回调
+      dialog.dataset.confirmCallback = "";
+    }
+  });
+}
+
+// 显示确认对话框
+function showConfirmDialog(message, callback) {
+  const dialog = document.getElementById("confirm-dialog");
+  const messageEl = document.getElementById("confirm-message");
+  
+  // 设置消息
+  messageEl.textContent = message;
+  
+  // 创建一个唯一的回调函数名
+  const callbackName = `confirmCallback_${Date.now()}`;
+  
+  // 将回调函数添加到全局作用域
+  window[callbackName] = callback;
+  
+  // 存储回调函数名
+  dialog.dataset.confirmCallback = callbackName;
+  
+  // 显示对话框
+  dialog.classList.add("active");
+}
+
+// 添加加载特效覆盖层
+function addLoadingOverlay(card, message) {
+  // 创建加载覆盖层
+  const overlay = document.createElement("div");
+  overlay.className = "card-loading";
+  overlay.innerHTML = `
+    <div class="loader"></div>
+    <div class="card-loading-text">${message}</div>
+  `;
+  
+  // 添加到卡片
+  card.appendChild(overlay);
+}
+
+// 移除加载特效覆盖层
+function removeLoadingOverlay(card) {
+  const overlay = card.querySelector(".card-loading");
+  if (overlay) {
+    overlay.remove();
+  }
+}
+
+// 显示提示消息
+function showToast(msg, duration = 3000) {
+  // 获取或创建 toast 容器
+  let toastContainer = document.getElementById("toast-container");
+  if (!toastContainer) {
+    toastContainer = document.createElement("div");
+    toastContainer.id = "toast-container";
+    toastContainer.style.position = "fixed";
+    toastContainer.style.top = "10px";
+    toastContainer.style.right = "10px";
+    toastContainer.style.zIndex = "9999";
+    document.body.appendChild(toastContainer);
+  }
+  
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = msg;
+  toastContainer.appendChild(toast);
+  
+  if (duration > 0) {
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.remove();
+      }
+    }, duration);
+  }
+}
+</script>
+
+<style>
+/* 容器列表样式 */
+.container-list {
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+  margin-top: 10px;
+}
+
+.container-list h4 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 0.9em;
+}
+
+.container-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.container-list li {
+  padding: 3px 0;
+  font-size: 0.85em;
+}
+
+.container-list li.running {
+  color: var(--status-running);
+}
+
+.container-list li.stopped {
+  color: var(--status-exited);
+}
+
+/* 镜像信息样式 */
+.image-id {
+  font-family: monospace;
+  margin-bottom: 10px;
+  font-size: 0.9em;
+  color: var(--text-secondary);
+}
+
+.image-info {
+  margin-bottom: 10px;
+  font-size: 0.9em;
+}
+
+.image-size, .image-created {
+  margin-bottom: 5px;
+}
+</style>
+</body>
+</html>

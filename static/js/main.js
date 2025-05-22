@@ -12,6 +12,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // 初始化资源统计控制
   initStatsControl();
   
+  // 初始化确认对话框
+  initConfirmDialog();
+  
   // 异步加载容器数据
   loadContainers();
   
@@ -231,6 +234,7 @@ function createContainerCard(container, status, index) {
   actionsHtml += `
     <button class="action-btn protocol-btn" title="切换协议">🔐</button>
     <button class="action-btn blacklist-btn" title="加入黑名单">🚫</button>
+    <button class="action-btn delete-btn" data-id="${container.id}" title="删除容器">🗑️</button>
   </div>`;
   
   let resourcesHtml = '';
@@ -271,10 +275,18 @@ function createContainerCard(container, status, index) {
     portsHtml = '<div class="port-item">无端口映射</div>';
   }
   
+  // 添加镜像信息
+  const imageInfo = `
+    <div class="image-info">
+      <span class="image-label">镜像:</span> <span class="image-name">${container.image}</span>
+    </div>
+  `;
+  
   card.innerHTML = `
     ${actionsHtml}
     <h3>${container.name}</h3>
     <div class="tag ${container.network === 'host' ? 'host' : ''}">${container.network}</div>
+    ${imageInfo}
     ${resourcesHtml}
     <div class="port-list">
       ${portsHtml}
@@ -506,6 +518,64 @@ function initContainerActionButtons(card) {
       
       // 跳转到终端页面
       window.open(`/terminal/${containerId}`, '_blank');
+    };
+  }
+  
+  // 删除容器按钮
+  const deleteBtn = card.querySelector(".delete-btn");
+  if (deleteBtn) {
+    deleteBtn.onclick = (e) => {
+      e.stopPropagation(); // 阻止事件冒泡
+      const containerId = deleteBtn.dataset.id;
+      const containerName = card.dataset.containerName;
+      
+      // 显示确认对话框
+      showConfirmDialog(
+        `确定要删除容器 ${containerName} 吗？`,
+        () => {
+          // 添加加载特效
+          addLoadingOverlay(card, "正在删除容器...");
+          
+          // 发送删除请求
+          fetch(`/api/delete/container/${containerId}?force=true`)
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`操作失败: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(data => {
+              if (data.success) {
+                // 添加淡出动画
+                card.classList.add("card-fading");
+                
+                // 延迟后移除卡片
+                setTimeout(() => {
+                  card.remove();
+                  
+                  // 检查分组是否为空
+                  const status = card.dataset.status;
+                  const grid = document.getElementById(`${status}-grid`);
+                  if (grid && grid.children.length === 0) {
+                    grid.innerHTML = `<div class="empty-state">没有${status}状态的容器</div>`;
+                  }
+                }, 500);
+                
+                showToast("容器删除成功");
+              } else {
+                // 移除加载特效
+                removeLoadingOverlay(card);
+                showToast(`删除失败: ${data.error || '未知错误'}`);
+              }
+            })
+            .catch(error => {
+              // 移除加载特效
+              removeLoadingOverlay(card);
+              showToast(`请求错误: ${error.message}`);
+              console.error("删除容器错误:", error);
+            });
+        }
+      );
     };
   }
 }
@@ -860,4 +930,74 @@ function showToast(msg, duration = 3000) {
       }, duration);
     }
   }
+}
+// 初始化确认对话框
+function initConfirmDialog() {
+  const dialog = document.getElementById("confirm-dialog");
+  const cancelBtn = document.getElementById("confirm-cancel");
+  const okBtn = document.getElementById("confirm-ok");
+  
+  if (!dialog || !cancelBtn || !okBtn) return;
+  
+  // 取消按钮
+  cancelBtn.addEventListener("click", () => {
+    dialog.classList.remove("active");
+    // 清除确认回调
+    dialog.dataset.confirmCallback = "";
+  });
+  
+  // 确认按钮
+  okBtn.addEventListener("click", () => {
+    dialog.classList.remove("active");
+    
+    // 执行确认回调
+    const callbackName = dialog.dataset.confirmCallback;
+    if (callbackName && window[callbackName]) {
+      window[callbackName]();
+    }
+    
+    // 清除确认回调
+    dialog.dataset.confirmCallback = "";
+  });
+  
+  // 点击背景关闭
+  dialog.addEventListener("click", (e) => {
+    if (e.target === dialog) {
+      dialog.classList.remove("active");
+      // 清除确认回调
+      dialog.dataset.confirmCallback = "";
+    }
+  });
+  
+  // ESC 键关闭
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && dialog.classList.contains("active")) {
+      dialog.classList.remove("active");
+      // 清除确认回调
+      dialog.dataset.confirmCallback = "";
+    }
+  });
+}
+
+// 显示确认对话框
+function showConfirmDialog(message, callback) {
+  const dialog = document.getElementById("confirm-dialog");
+  const messageEl = document.getElementById("confirm-message");
+  
+  if (!dialog || !messageEl) return;
+  
+  // 设置消息
+  messageEl.textContent = message;
+  
+  // 创建一个唯一的回调函数名
+  const callbackName = `confirmCallback_${Date.now()}`;
+  
+  // 将回调函数添加到全局作用域
+  window[callbackName] = callback;
+  
+  // 存储回调函数名
+  dialog.dataset.confirmCallback = callbackName;
+  
+  // 显示对话框
+  dialog.classList.add("active");
 }

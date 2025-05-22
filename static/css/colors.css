@@ -1,28 +1,116 @@
-/* 容器卡片颜色定义 */
-.running-card-0 { background: linear-gradient(135deg, #74ebd5, #9face6) !important; }
-.running-card-1 { background: linear-gradient(135deg, #a18cd1, #fbc2eb) !important; }
-.running-card-2 { background: linear-gradient(135deg, #ff9a9e, #fad0c4) !important; }
-.running-card-3 { background: linear-gradient(135deg, #84fab0, #8fd3f4) !important; }
-.running-card-4 { background: linear-gradient(135deg, #f6d365, #fda085) !important; }
-.running-card-5 { background: linear-gradient(135deg, #a1c4fd, #c2e9fb) !important; }
+:root {
+  /* 基础颜色 */
+  --bg-color: #f5f7fa;
+  --card-bg: #ffffff;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --border-color: #e0e0e0;
+  
+  /* 状态颜色 */
+  --status-running: #4caf50;
+  --status-exited: #f44336;
+  --status-paused: #ff9800;
+  --status-other: #9e9e9e;
+  
+  /* 按钮颜色 */
+  --button-primary: #2196f3;
+  --button-secondary: #e0e0e0;
+  --button-danger: #f44336;
+  --button-primary-hover: #1976d2;
+  --button-secondary-hover: #d0d0d0;
+  --button-danger-hover: #d32f2f;
+  
+  /* 标签颜色 */
+  --tag-bg: #e0e0e0;
+  --tag-text: #333333;
+  
+  /* 端口状态颜色 */
+  --port-open: #4caf50;
+  --port-closed: #f44336;
+  
+  /* 复制效果颜色 */
+  --copy-bg: rgba(33, 150, 243, 0.2);
+  
+  /* 运行中容器卡片渐变 */
+  --running-gradient-0: rgba(76, 175, 80, 0.1);
+  --running-gradient-1: rgba(76, 175, 80, 0.15);
+  --running-gradient-2: rgba(76, 175, 80, 0.2);
+  --running-gradient-3: rgba(76, 175, 80, 0.25);
+  --running-gradient-4: rgba(76, 175, 80, 0.3);
+  --running-gradient-5: rgba(76, 175, 80, 0.35);
+  
+  /* 已停止容器卡片渐变 */
+  --exited-gradient-0: rgba(244, 67, 54, 0.1);
+  --exited-gradient-1: rgba(244, 67, 54, 0.15);
+  --exited-gradient-2: rgba(244, 67, 54, 0.2);
+  --exited-gradient-3: rgba(244, 67, 54, 0.25);
+  --exited-gradient-4: rgba(244, 67, 54, 0.3);
+  --exited-gradient-5: rgba(244, 67, 54, 0.35);
+  
+  /* 已暂停容器卡片渐变 */
+  --paused-gradient-0: rgba(255, 152, 0, 0.1);
+  --paused-gradient-1: rgba(255, 152, 0, 0.15);
+  --paused-gradient-2: rgba(255, 152, 0, 0.2);
+  --paused-gradient-3: rgba(255, 152, 0, 0.25);
+  --paused-gradient-4: rgba(255, 152, 0, 0.3);
+  --paused-gradient-5: rgba(255, 152, 0, 0.35);
+  
+  /* 其他状态容器卡片渐变 */
+  --other-gradient-0: rgba(158, 158, 158, 0.1);
+  --other-gradient-1: rgba(158, 158, 158, 0.15);
+  --other-gradient-2: rgba(158, 158, 158, 0.2);
+  --other-gradient-3: rgba(158, 158, 158, 0.25);
+  --other-gradient-4: rgba(158, 158, 158, 0.3);
+  --other-gradient-5: rgba(158, 158, 158, 0.35);
+}
 
-.exited-card-0 { background: linear-gradient(135deg, #a1c4fd, #c2e9fb) !important; }
-.exited-card-1 { background: linear-gradient(135deg, #f6d365, #fda085) !important; }
-.exited-card-2 { background: linear-gradient(135deg, #84fab0, #8fd3f4) !important; }
-.exited-card-3 { background: linear-gradient(135deg, #ff9a9e, #fad0c4) !important; }
-.exited-card-4 { background: linear-gradient(135deg, #a18cd1, #fbc2eb) !important; }
-.exited-card-5 { background: linear-gradient(135deg, #74ebd5, #9face6) !important; }
-
-.paused-card-0 { background: linear-gradient(135deg, #ff9a9e, #fad0c4) !important; }
-.paused-card-1 { background: linear-gradient(135deg, #84fab0, #8fd3f4) !important; }
-.paused-card-2 { background: linear-gradient(135deg, #a1c4fd, #c2e9fb) !important; }
-.paused-card-3 { background: linear-gradient(135deg, #f6d365, #fda085) !important; }
-.paused-card-4 { background: linear-gradient(135deg, #74ebd5, #9face6) !important; }
-.paused-card-5 { background: linear-gradient(135deg, #a18cd1, #fbc2eb) !important; }
-
-.other-card-0 { background: linear-gradient(135deg, #a18cd1, #fbc2eb) !important; }
-.other-card-1 { background: linear-gradient(135deg, #74ebd5, #9face6) !important; }
-.other-card-2 { background: linear-gradient(135deg, #f6d365, #fda085) !important; }
-.other-card-3 { background: linear-gradient(135deg, #a1c4fd, #c2e9fb) !important; }
-.other-card-4 { background: linear-gradient(135deg, #ff9a9e, #fad0c4) !important; }
-.other-card-5 { background: linear-gradient(135deg, #84fab0, #8fd3f4) !important; }
+/* 暗色主题 */
+body.dark {
+  --bg-color: #121212;
+  --card-bg: #1e1e1e;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --border-color: #333333;
+  
+  /* 状态颜色保持不变 */
+  
+  /* 按钮颜色调整 */
+  --button-secondary: #333333;
+  --button-secondary-hover: #444444;
+  
+  /* 标签颜色调整 */
+  --tag-bg: #333333;
+  --tag-text: #e0e0e0;
+  
+  /* 运行中容器卡片渐变 */
+  --running-gradient-0: rgba(76, 175, 80, 0.15);
+  --running-gradient-1: rgba(76, 175, 80, 0.2);
+  --running-gradient-2: rgba(76, 175, 80, 0.25);
+  --running-gradient-3: rgba(76, 175, 80, 0.3);
+  --running-gradient-4: rgba(76, 175, 80, 0.35);
+  --running-gradient-5: rgba(76, 175, 80, 0.4);
+  
+  /* 已停止容器卡片渐变 */
+  --exited-gradient-0: rgba(244, 67, 54, 0.15);
+  --exited-gradient-1: rgba(244, 67, 54, 0.2);
+  --exited-gradient-2: rgba(244, 67, 54, 0.25);
+  --exited-gradient-3: rgba(244, 67, 54, 0.3);
+  --exited-gradient-4: rgba(244, 67, 54, 0.35);
+  --exited-gradient-5: rgba(244, 67, 54, 0.4);
+  
+  /* 已暂停容器卡片渐变 */
+  --paused-gradient-0: rgba(255, 152, 0, 0.15);
+  --paused-gradient-1: rgba(255, 152, 0, 0.2);
+  --paused-gradient-2: rgba(255, 152, 0, 0.25);
+  --paused-gradient-3: rgba(255, 152, 0, 0.3);
+  --paused-gradient-4: rgba(255, 152, 0, 0.35);
+  --paused-gradient-5: rgba(255, 152, 0, 0.4);
+  
+  /* 其他状态容器卡片渐变 */
+  --other-gradient-0: rgba(158, 158, 158, 0.15);
+  --other-gradient-1: rgba(158, 158, 158, 0.2);
+  --other-gradient-2: rgba(158, 158, 158, 0.25);
+  --other-gradient-3: rgba(158, 158, 158, 0.3);
+  --other-gradient-4: rgba(158, 158, 158, 0.35);
+  --other-gradient-5: rgba(158, 158, 158, 0.4);
+}

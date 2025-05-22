@@ -13,6 +13,11 @@ logger = logging.getLogger(__name__)
 def index():
     return render_template('index.html')
 
+# 镜像页面
+@app.route('/images')
+def images():
+    return render_template('images.html')
+
 # 黑名单页面
 @app.route('/blacklist')
 def blacklist():

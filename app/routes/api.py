@@ -9,7 +9,10 @@ from app.services.container_service import (
     start_container, 
     stop_container, 
     restart_container, 
-    get_container_logs
+    get_container_logs,
+    delete_container,
+    get_all_images,
+    delete_image
 )
 from app.docker_client import get_docker_client
 import logging
@@ -26,6 +29,18 @@ def api_get_all_containers():
         return jsonify({"success": False, "error": str(e)}), 500
     except Exception as e:
         logger.error(f"获取容器列表失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# 获取所有镜像
+@app.route('/api/images/all')
+def api_get_all_images():
+    try:
+        images = get_all_images()
+        return jsonify({"success": True, "images": images})
+    except ConnectionError as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    except Exception as e:
+        logger.error(f"获取镜像列表失败: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 # 获取容器资源统计
@@ -74,6 +89,32 @@ def api_restart_container(container_id):
         return jsonify({"success": False, "error": str(e)}), 500
     except Exception as e:
         logger.error(f"重启容器失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# 删除容器
+@app.route('/api/delete/container/<container_id>')
+def api_delete_container(container_id):
+    try:
+        force = request.args.get('force', 'false').lower() == 'true'
+        delete_container(container_id, force=force)
+        return jsonify({"success": True})
+    except ConnectionError as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    except Exception as e:
+        logger.error(f"删除容器失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# 删除镜像
+@app.route('/api/delete/image/<image_id>')
+def api_delete_image(image_id):
+    try:
+        force = request.args.get('force', 'false').lower() == 'true'
+        delete_image(image_id, force=force)
+        return jsonify({"success": True})
+    except ConnectionError as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    except Exception as e:
+        logger.error(f"删除镜像失败: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 # 获取容器日志

@@ -20,6 +20,7 @@
   <h1>Containly 容器面板</h1>
   <label for="host-ip">宿主机 IP：</label>
   <input type="text" id="host-ip" placeholder="例如 192.168.1.100" />
+  <a href="/images" class="nav-link">镜像管理</a>
   <a href="/blacklist" class="blacklist-link">黑名单管理</a>
   <button class="dark-toggle" id="darkBtn">🌙</button>
 </div>
@@ -72,6 +73,18 @@
     <button class="log-close">&times;</button>
   </div>
   <div class="log-content"></div>
+</div>
+
+<!-- 确认对话框 -->
+<div class="confirm-dialog" id="confirm-dialog">
+  <div class="confirm-dialog-content">
+    <h3>确认操作</h3>
+    <p id="confirm-message">确定要执行此操作吗？</p>
+    <div class="confirm-buttons">
+      <button id="confirm-cancel">取消</button>
+      <button id="confirm-ok">确定</button>
+    </div>
+  </div>
 </div>
 
 <!-- 资源统计控制 -->
