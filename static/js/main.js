@@ -166,10 +166,10 @@ function updateContainerStats(stats) {
     const card = document.querySelector(`.card[data-container-id="${containerId}"]`);
     if (!card) continue;
     
-    const cpuBar = card.querySelector(".resource-usage .resource-bar:first-child .resource-fill");
-    const cpuText = card.querySelector(".resource-usage .resource-text:first-child");
-    const memoryBar = card.querySelector(".resource-usage .resource-bar:last-child .resource-fill");
-    const memoryText = card.querySelector(".resource-usage .resource-text:last-child");
+    const cpuBar = card.querySelector(".resource-usage .resource-bar:nth-of-type(1) .resource-fill");
+    const cpuText = card.querySelector(".resource-usage .resource-text:nth-of-type(1)");
+    const memoryBar = card.querySelector(".resource-usage .resource-bar:nth-of-type(2) .resource-fill");
+    const memoryText = card.querySelector(".resource-usage .resource-text:nth-of-type(2)");
     
     if (cpuBar && cpuText) {
       cpuBar.style.width = `${containerStats.cpu_usage}%`;
