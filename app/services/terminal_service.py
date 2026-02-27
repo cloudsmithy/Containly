@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import docker
 import logging
 import threading
 import time
@@ -9,122 +8,106 @@ from app.docker_client import get_docker_client
 
 logger = logging.getLogger(__name__)
 
-# 存储活跃的终端会话
+# 存储活跃的终端会话（线程安全）
+_sessions_lock = threading.Lock()
 active_sessions = {}
+
 
 def create_exec_instance(container_id, command="/bin/sh"):
     """在容器中创建一个执行实例"""
     client = get_docker_client()
     if not client:
         raise ConnectionError("Docker连接失败")
-    
-    try:
-        container = client.containers.get(container_id)
-        exec_id = client.api.exec_create(
-            container.id,
-            command,
-            stdin=True,
-            stdout=True,
-            stderr=True,
-            tty=True
-        )
-        
-        # 启动执行实例
-        exec_stream = client.api.exec_start(
-            exec_id["Id"],
-            detach=False,
-            tty=True,
-            stream=True,
-            socket=True
-        )
-        
-        # 存储会话信息
+
+    container = client.containers.get(container_id)
+    exec_id = client.api.exec_create(
+        container.id, command,
+        stdin=True, stdout=True, stderr=True, tty=True
+    )
+
+    exec_stream = client.api.exec_start(
+        exec_id["Id"], detach=False, tty=True, stream=True, socket=True
+    )
+
+    with _sessions_lock:
         active_sessions[exec_id["Id"]] = {
             "socket": exec_stream,
             "container_id": container_id,
             "last_activity": time.time()
         }
-        
-        return exec_id["Id"]
-    except Exception as e:
-        logger.error(f"创建执行实例失败: {e}")
-        raise
+
+    return exec_id["Id"]
+
 
 def resize_exec_instance(exec_id, height, width):
     """调整终端大小"""
     client = get_docker_client()
     if not client:
         raise ConnectionError("Docker连接失败")
-    
-    try:
-        client.api.exec_resize(exec_id, height=height, width=width)
-        return True
-    except Exception as e:
-        logger.error(f"调整终端大小失败: {e}")
-        raise
+    client.api.exec_resize(exec_id, height=height, width=width)
+    return True
+
 
 def send_command(exec_id, command):
     """向终端发送命令"""
-    if exec_id not in active_sessions:
+    with _sessions_lock:
+        session = active_sessions.get(exec_id)
+    if not session:
         raise ValueError(f"终端会话 {exec_id} 不存在")
-    
+
+    sock = session["socket"]
+    session["last_activity"] = time.time()
+
+    # 发送命令
+    sock._sock.send(command.encode('utf-8'))
+    time.sleep(0.05)
+
+    # 读取响应
+    response = b''
+    sock._sock.settimeout(0.5)
+
     try:
-        session = active_sessions[exec_id]
-        socket = session["socket"]
-        
-        # 更新最后活动时间
-        session["last_activity"] = time.time()
-        
-        # 发送命令
-        socket._sock.send(command.encode('utf-8'))
-        
-        # 等待一小段时间以确保命令被处理
-        time.sleep(0.05)
-        
-        # 读取响应
-        response = b''
-        
-        # 设置超时时间
-        socket._sock.settimeout(0.5)
-        
+        while True:
+            chunk = sock._sock.recv(4096)
+            if not chunk:
+                break
+            response += chunk
+    except (TimeoutError, OSError):
+        pass
+
+    sock._sock.settimeout(None)
+    return response.decode('utf-8', errors='replace')
+
+
+def close_session(exec_id):
+    """主动关闭一个终端会话"""
+    with _sessions_lock:
+        session = active_sessions.pop(exec_id, None)
+    if session:
         try:
-            while True:
-                try:
-                    chunk = socket._sock.recv(4096)
-                    if not chunk:
-                        break
-                    response += chunk
-                except socket.timeout:
-                    break
+            session["socket"]._sock.close()
         except Exception as e:
-            logger.warning(f"读取响应时出现异常: {e}")
-        
-        # 恢复默认超时
-        socket._sock.settimeout(None)
-        
-        return response.decode('utf-8', errors='replace')
-    except Exception as e:
-        logger.error(f"发送命令失败: {e}")
-        raise
+            logger.error(f"关闭会话 socket 失败: {e}")
+
 
 def cleanup_inactive_sessions():
     """清理不活跃的会话"""
     current_time = time.time()
-    inactive_sessions = []
-    
-    for exec_id, session in active_sessions.items():
-        if current_time - session["last_activity"] > 3600:  # 1小时不活跃
-            inactive_sessions.append(exec_id)
-    
-    for exec_id in inactive_sessions:
+    with _sessions_lock:
+        inactive = [eid for eid, s in active_sessions.items()
+                    if current_time - s["last_activity"] > 3600]
+
+    for exec_id in inactive:
         try:
-            session = active_sessions.pop(exec_id)
-            session["socket"]._sock.close()
-            logger.info(f"已清理不活跃会话: {exec_id}")
+            with _sessions_lock:
+                session = active_sessions.pop(exec_id, None)
+            if session:
+                session["socket"]._sock.close()
+                logger.info(f"已清理不活跃会话: {exec_id}")
         except Exception as e:
             logger.error(f"清理会话失败: {e}")
 
-# 启动定期清理任务
+
 def start_cleanup_task():
     def cleanup_task():
         while True:
@@ -132,10 +115,9 @@ def start_cleanup_task():
                 cleanup_inactive_sessions()
             except Exception as e:
                 logger.error(f"清理任务出错: {e}")
-            time.sleep(1800)  # 每30分钟运行一次
-    
-    cleanup_thread = threading.Thread(target=cleanup_task, daemon=True)
-    cleanup_thread.start()
+            time.sleep(1800)
 
-# 应用启动时启动清理任务
+    threading.Thread(target=cleanup_task, daemon=True).start()
+
+
 start_cleanup_task()

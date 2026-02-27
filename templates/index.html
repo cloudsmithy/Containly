@@ -11,17 +11,17 @@
 <body>
 <div id="toast-container" style="
   position: fixed;
-  top: 10px;
-  right: 10px;
+  top: 16px;
+  right: 16px;
   z-index: 9999;
 "></div>
 
 <div class="top-bar">
-  <h1>Containly 容器面板</h1>
-  <label for="host-ip">宿主机 IP：</label>
+  <h1>🐳 Containly</h1>
+  <label for="host-ip">宿主机 IP</label>
   <input type="text" id="host-ip" placeholder="例如 192.168.1.100" />
-  <a href="/images" class="nav-link">镜像管理</a>
-  <a href="/blacklist" class="blacklist-link">黑名单管理</a>
+  <a href="/images" class="nav-link">📦 镜像管理</a>
+  <a href="/blacklist" class="blacklist-link">🚫 黑名单</a>
   <button class="dark-toggle" id="darkBtn">🌙</button>
 </div>
 
@@ -33,33 +33,29 @@
 
 <!-- 容器分组区域 - 将由JavaScript动态填充 -->
 <div id="container-groups">
-  <!-- 运行中容器 -->
   <div class="section" data-status="running">
-    <h2>Running 容器</h2>
+    <h2>🟢 Running</h2>
     <div class="grid" id="running-grid">
       <div class="empty-state">加载中...</div>
     </div>
   </div>
   
-  <!-- 已停止容器 -->
   <div class="section" data-status="exited">
-    <h2>Exited 容器</h2>
+    <h2>⏹ Exited</h2>
     <div class="grid" id="exited-grid">
       <div class="empty-state">加载中...</div>
     </div>
   </div>
   
-  <!-- 已暂停容器 -->
   <div class="section" data-status="paused">
-    <h2>Paused 容器</h2>
+    <h2>⏸ Paused</h2>
     <div class="grid" id="paused-grid">
       <div class="empty-state">加载中...</div>
     </div>
   </div>
   
-  <!-- 其他状态容器 -->
   <div class="section" data-status="other">
-    <h2>Other 容器</h2>
+    <h2>❓ Other</h2>
     <div class="grid" id="other-grid">
       <div class="empty-state">加载中...</div>
     </div>
@@ -69,8 +65,11 @@
 <!-- 日志查看器 -->
 <div class="log-viewer">
   <div class="log-header">
-    <h2>容器日志</h2>
-    <button class="log-close">&times;</button>
+    <h2>容器日志 - <span id="log-container-name"></span></h2>
+    <div>
+      <button class="log-refresh" id="log-refresh" title="刷新日志">🔄</button>
+      <button class="log-close">&times;</button>
+    </div>
   </div>
   <div class="log-content"></div>
 </div>

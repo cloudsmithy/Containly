@@ -11,14 +11,14 @@
 <body>
 <div id="toast-container" style="
   position: fixed;
-  top: 10px;
-  right: 10px;
+  top: 16px;
+  right: 16px;
   z-index: 9999;
 "></div>
 
 <div class="top-bar">
-  <h1>Containly 镜像管理</h1>
-  <a href="/" class="nav-link">返回容器面板</a>
+  <h1>📦 镜像管理</h1>
+  <a href="/" class="nav-link">← 返回容器面板</a>
   <button class="dark-toggle" id="darkBtn">🌙</button>
 </div>
 
@@ -196,7 +196,7 @@ function deleteImage(imageId, card) {
   // 添加加载特效
   addLoadingOverlay(card, "正在删除镜像...");
   
-  fetch(`/api/delete/image/${imageId}`)
+  fetch(`/api/delete/image/${imageId}`, { method: 'DELETE' })
     .then(response => {
       if (!response.ok) {
         throw new Error(`操作失败: ${response.status}`);
@@ -234,49 +234,34 @@ function deleteImage(imageId, card) {
     });
 }
 
+// 确认对话框回调
+let _confirmCallback = null;
+
 // 初始化确认对话框
 function initConfirmDialog() {
   const dialog = document.getElementById("confirm-dialog");
   const cancelBtn = document.getElementById("confirm-cancel");
   const okBtn = document.getElementById("confirm-ok");
-  
-  // 取消按钮
-  cancelBtn.addEventListener("click", () => {
+
+  const closeDialog = () => {
     dialog.classList.remove("active");
-    // 清除确认回调
-    dialog.dataset.confirmCallback = "";
-  });
-  
-  // 确认按钮
+    _confirmCallback = null;
+  };
+
+  cancelBtn.addEventListener("click", closeDialog);
+
   okBtn.addEventListener("click", () => {
     dialog.classList.remove("active");
-    
-    // 执行确认回调
-    const callbackName = dialog.dataset.confirmCallback;
-    if (callbackName && window[callbackName]) {
-      window[callbackName]();
-    }
-    
-    // 清除确认回调
-    dialog.dataset.confirmCallback = "";
+    if (_confirmCallback) _confirmCallback();
+    _confirmCallback = null;
   });
-  
-  // 点击背景关闭
+
   dialog.addEventListener("click", (e) => {
-    if (e.target === dialog) {
-      dialog.classList.remove("active");
-      // 清除确认回调
-      dialog.dataset.confirmCallback = "";
-    }
+    if (e.target === dialog) closeDialog();
   });
-  
-  // ESC 键关闭
+
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && dialog.classList.contains("active")) {
-      dialog.classList.remove("active");
-      // 清除确认回调
-      dialog.dataset.confirmCallback = "";
-    }
+    if (e.key === "Escape" && dialog.classList.contains("active")) closeDialog();
   });
 }
 
@@ -284,20 +269,10 @@ function initConfirmDialog() {
 function showConfirmDialog(message, callback) {
   const dialog = document.getElementById("confirm-dialog");
   const messageEl = document.getElementById("confirm-message");
-  
-  // 设置消息
+  if (!dialog || !messageEl) return;
+
   messageEl.textContent = message;
-  
-  // 创建一个唯一的回调函数名
-  const callbackName = `confirmCallback_${Date.now()}`;
-  
-  // 将回调函数添加到全局作用域
-  window[callbackName] = callback;
-  
-  // 存储回调函数名
-  dialog.dataset.confirmCallback = callbackName;
-  
-  // 显示对话框
+  _confirmCallback = callback;
   dialog.classList.add("active");
 }
 

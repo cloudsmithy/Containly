@@ -4,213 +4,172 @@
   <meta charset="UTF-8" />
   <title>{{ container_name }} - 终端 - Containly</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="/static/css/style.css">
   <link rel="stylesheet" href="/static/css/terminal.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
 </head>
-<body class="dark">
-<div class="top-bar">
-  <h1>{{ container_name }} - 终端</h1>
-  <a href="/" class="back-link">返回首页</a>
+<body>
+
+<div class="term-topbar">
+  <div class="term-topbar-left">
+    <div class="term-traffic-lights">
+      <a href="/" class="term-dot term-dot-red" title="返回首页"></a>
+      <span class="term-dot term-dot-yellow" id="clear-terminal" title="清空终端"></span>
+      <span class="term-dot term-dot-green" id="toggle-fullscreen" title="全屏"></span>
+    </div>
+    <span class="term-title">{{ container_name }}</span>
+    <span class="term-id">{{ container_id[:12] }}</span>
+  </div>
+  <div class="term-topbar-right">
+    <span class="term-status" id="conn-status">● 连接中...</span>
+  </div>
 </div>
 
-<div class="terminal-container">
-  <div class="terminal-header">
-    <div class="terminal-info">
-      <span id="container-name">{{ container_name }}</span>
-      <span id="container-id">{{ container_id }}</span>
-    </div>
-    <div class="terminal-actions">
-      <button id="clear-terminal" title="清空终端">清空</button>
-      <button id="toggle-fullscreen" title="全屏模式">全屏</button>
-    </div>
-  </div>
-  
-  <div class="command-history" id="command-history"></div>
-  
-  <div class="command-input-container">
-    <span class="command-prompt">{{ container_name }}:~$</span>
-    <input type="text" id="command-input" placeholder="输入命令..." autocomplete="off" autofocus>
-    <button id="send-command">发送</button>
-  </div>
+<div class="term-body" id="terminal-output"></div>
+
+<div class="term-input-bar">
+  <span class="term-prompt" id="term-prompt">$</span>
+  <input type="text" id="command-input" placeholder="输入命令..." autocomplete="off" spellcheck="false" autofocus>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const containerId = "{{ container_id }}";
-    const containerName = "{{ container_name }}";
-    const commandHistory = document.getElementById('command-history');
-    const commandInput = document.getElementById('command-input');
-    const sendButton = document.getElementById('send-command');
-    const clearButton = document.getElementById('clear-terminal');
-    const fullscreenButton = document.getElementById('toggle-fullscreen');
-    let isFullscreen = false;
-    
-    // 历史命令记录
-    let history = [];
-    let historyIndex = -1;
-    
-    // 添加命令行
-    function addCommandLine(command) {
-        const line = document.createElement('div');
-        line.className = 'command-line';
-        line.innerHTML = `<span class="command-prompt">${containerName}:~$</span> <span class="command-text">${escapeHtml(command)}</span>`;
-        commandHistory.appendChild(line);
-        commandHistory.scrollTop = commandHistory.scrollHeight;
+  const containerId = "{{ container_id }}";
+  const containerName = "{{ container_name }}";
+  const output = document.getElementById('terminal-output');
+  const input = document.getElementById('command-input');
+  const statusEl = document.getElementById('conn-status');
+  const clearBtn = document.getElementById('clear-terminal');
+  const fullscreenBtn = document.getElementById('toggle-fullscreen');
+
+  let execId = null;
+  let history = [];
+  let historyIndex = -1;
+  let isFullscreen = false;
+
+  // --- Socket.IO 连接 ---
+  const socket = io({ transports: ['websocket', 'polling'] });
+
+  socket.on('connect', () => {
+    setStatus('connected', '● 已连接');
+    socket.emit('terminal_init', { container_id: containerId });
+  });
+
+  socket.on('disconnect', () => {
+    setStatus('disconnected', '● 已断开');
+    appendOutput('\n\r\x1b[31m[连接已断开]\x1b[0m\n');
+  });
+
+  socket.on('terminal_ready', (data) => {
+    execId = data.exec_id;
+    appendOutput(`\x1b[32m已连接到容器: ${containerName}\x1b[0m\n\n`);
+  });
+
+  socket.on('terminal_output', (data) => {
+    if (data.output) appendOutput(data.output);
+  });
+
+  socket.on('terminal_error', (data) => {
+    appendOutput(`\n\x1b[31m错误: ${data.error}\x1b[0m\n`);
+    setStatus('error', '● 错误');
+  });
+
+  // --- 输出渲染 ---
+  function appendOutput(text) {
+    const el = document.createElement('span');
+    el.innerHTML = ansiToHtml(text);
+    output.appendChild(el);
+    output.scrollTop = output.scrollHeight;
+  }
+
+  function ansiToHtml(text) {
+    const colorMap = {
+      '30': '#555', '31': '#f55', '32': '#5f5', '33': '#ff5',
+      '34': '#55f', '35': '#f5f', '36': '#5ff', '37': '#fff',
+      '90': '#888', '91': '#f88', '92': '#8f8', '93': '#ff8',
+      '94': '#88f', '95': '#f8f', '96': '#8ff', '97': '#fff'
+    };
+
+    return text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+      .replace(/\x1B\[([0-9;]*)m/g, (_, codes) => {
+        if (!codes || codes === '0') return '</span>';
+        for (const c of codes.split(';')) {
+          if (colorMap[c]) return `<span style="color:${colorMap[c]}">`;
+          if (c === '1') return '<span style="font-weight:bold">';
+        }
+        return '';
+      })
+      .replace(/\x1B\[[0-9;]*[A-Za-z]/g, '') // strip remaining escape sequences
+      .replace(/\n/g, '<br>');
+  }
+
+  function setStatus(cls, text) {
+    statusEl.className = 'term-status term-status-' + cls;
+    statusEl.textContent = text;
+  }
+
+  // --- 命令输入 ---
+  function sendCommand() {
+    const cmd = input.value;
+    if (!execId) return;
+
+    if (cmd.trim()) {
+      history.push(cmd);
+      historyIndex = history.length;
     }
-    
-    // 添加命令输出
-    function addCommandOutput(output) {
-        if (!output) return;
-        
-        const outputElement = document.createElement('div');
-        outputElement.className = 'command-output';
-        outputElement.innerHTML = stripAnsiAndFormat(output);
-        commandHistory.appendChild(outputElement);
-        commandHistory.scrollTop = commandHistory.scrollHeight;
-    }
-    
-    // 去除ANSI转义序列并格式化输出
-    function stripAnsiAndFormat(output) {
-        // 去除ANSI转义序列
-        const strippedOutput = output.replace(/\x1B\[[0-9;]*[mGK]/g, '');
-        
-        // 处理换行和空格
-        return escapeHtml(strippedOutput)
-            .replace(/\n/g, '<br>')
-            .replace(/\s{2}/g, '&nbsp;&nbsp;');
-    }
-    
-    // HTML转义
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    // 发送命令
-    function sendCommand() {
-        const command = commandInput.value.trim();
-        if (!command) return;
-        
-        // 添加到历史记录
-        history.push(command);
+
+    socket.emit('terminal_input', { exec_id: execId, command: cmd + '\n' });
+    input.value = '';
+  }
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      sendCommand();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (history.length > 0 && historyIndex > 0) {
+        historyIndex--;
+        input.value = history[historyIndex];
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIndex < history.length - 1) {
+        historyIndex++;
+        input.value = history[historyIndex];
+      } else {
         historyIndex = history.length;
-        
-        // 显示命令
-        addCommandLine(command);
-        
-        // 发送命令到后端
-        fetch(`/api/exec/${containerId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ command: command })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                addCommandOutput(data.output);
-            } else {
-                addCommandOutput(`错误: ${data.error}`);
-            }
-        })
-        .catch(error => {
-            addCommandOutput(`错误: ${error.message}`);
-        });
-        
-        // 清空输入框
-        commandInput.value = '';
+        input.value = '';
+      }
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      // 发送 tab 给 shell 做补全
+      if (execId) socket.emit('terminal_input', { exec_id: execId, command: '\t' });
+    } else if (e.key === 'c' && e.ctrlKey) {
+      e.preventDefault();
+      if (execId) socket.emit('terminal_input', { exec_id: execId, command: '\x03' });
     }
-    
-    // 发送按钮点击事件
-    sendButton.addEventListener('click', sendCommand);
-    
-    // 输入框回车事件
-    commandInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            sendCommand();
-        } else if (e.key === 'ArrowUp') {
-            // 浏览历史命令 - 向上
-            if (history.length > 0 && historyIndex > 0) {
-                historyIndex--;
-                commandInput.value = history[historyIndex];
-                // 将光标移到末尾
-                setTimeout(() => {
-                    commandInput.selectionStart = commandInput.selectionEnd = commandInput.value.length;
-                }, 0);
-            }
-        } else if (e.key === 'ArrowDown') {
-            // 浏览历史命令 - 向下
-            if (historyIndex < history.length - 1) {
-                historyIndex++;
-                commandInput.value = history[historyIndex];
-                // 将光标移到末尾
-                setTimeout(() => {
-                    commandInput.selectionStart = commandInput.selectionEnd = commandInput.value.length;
-                }, 0);
-            } else if (historyIndex === history.length - 1) {
-                historyIndex = history.length;
-                commandInput.value = '';
-            }
-        }
-    });
-    
-    // 清空终端按钮
-    clearButton.addEventListener('click', () => {
-        commandHistory.innerHTML = '';
-    });
-    
-    // 全屏按钮
-    fullscreenButton.addEventListener('click', () => {
-        const terminalContainer = document.querySelector('.terminal-container');
-        
-        if (!isFullscreen) {
-            document.documentElement.style.overflow = 'hidden';
-            terminalContainer.style.position = 'fixed';
-            terminalContainer.style.top = '0';
-            terminalContainer.style.left = '0';
-            terminalContainer.style.width = '100%';
-            terminalContainer.style.height = '100%';
-            terminalContainer.style.margin = '0';
-            terminalContainer.style.zIndex = '1000';
-            terminalContainer.style.borderRadius = '0';
-            
-            document.querySelector('.top-bar').style.display = 'none';
-            fullscreenButton.textContent = '退出全屏';
-            
-            isFullscreen = true;
-        } else {
-            document.documentElement.style.overflow = '';
-            terminalContainer.style.position = '';
-            terminalContainer.style.top = '';
-            terminalContainer.style.left = '';
-            terminalContainer.style.width = '';
-            terminalContainer.style.height = '';
-            terminalContainer.style.margin = '';
-            terminalContainer.style.zIndex = '';
-            terminalContainer.style.borderRadius = '';
-            
-            document.querySelector('.top-bar').style.display = '';
-            fullscreenButton.textContent = '全屏';
-            
-            isFullscreen = false;
-        }
-        
-        // 聚焦输入框
-        setTimeout(() => {
-            commandInput.focus();
-        }, 100);
-    });
-    
-    // 初始化欢迎信息
-    addCommandOutput(`欢迎使用 Containly 终端\n连接到容器: ${containerName} (${containerId})\n输入命令开始使用...\n`);
-    
-    // 聚焦输入框
-    commandInput.focus();
-    
-    // 点击终端区域时聚焦输入框
-    commandHistory.addEventListener('click', () => {
-        commandInput.focus();
-    });
+  });
+
+  // --- 工具栏 ---
+  clearBtn.addEventListener('click', () => { output.innerHTML = ''; });
+
+  fullscreenBtn.addEventListener('click', () => {
+    isFullscreen = !isFullscreen;
+    document.body.classList.toggle('fullscreen', isFullscreen);
+    input.focus();
+  });
+
+  // 点击终端区域聚焦输入
+  output.addEventListener('click', () => input.focus());
+
+  // ESC 退出全屏
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isFullscreen) {
+      isFullscreen = false;
+      document.body.classList.remove('fullscreen');
+    }
+  });
 });
 </script>
 </body>

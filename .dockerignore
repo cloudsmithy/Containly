@@ -1,5 +1,8 @@
-__pycache__/
+.git
+__pycache__
 *.pyc
-*.pyo
-*.pyd
-.env
+.DS_Store
+.github
+*.md
+docker-compose.yml
+docker-push.sh

@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import functools
 from flask import jsonify, request
 from app import app
 from app.services.container_service import (
-    get_all_containers, 
-    get_container_stats, 
-    start_container, 
-    stop_container, 
-    restart_container, 
+    get_all_containers,
+    get_container_stats,
+    start_container,
+    stop_container,
+    restart_container,
     get_container_logs,
     delete_container,
     get_all_images,
@@ -19,139 +20,128 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# 获取所有容器
+
+def api_error_handler(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except ConnectionError as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+        except Exception as e:
+            logger.error(f"{f.__name__} 失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    return wrapper
+
+
 @app.route('/api/containers/all')
+@api_error_handler
 def api_get_all_containers():
-    try:
-        containers = get_all_containers()
-        return jsonify({"success": True, "containers": containers})
-    except ConnectionError as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-    except Exception as e:
-        logger.error(f"获取容器列表失败: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": True, "containers": get_all_containers()})
 
-# 获取所有镜像
+
+@app.route('/api/health')
+def api_health():
+    from app.docker_client import is_connected
+    return jsonify({"docker": is_connected()})
+
+
 @app.route('/api/images/all')
+@api_error_handler
 def api_get_all_images():
-    try:
-        images = get_all_images()
-        return jsonify({"success": True, "images": images})
-    except ConnectionError as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-    except Exception as e:
-        logger.error(f"获取镜像列表失败: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": True, "images": get_all_images()})
 
-# 获取容器资源统计
+
 @app.route('/api/containers/stats')
+@api_error_handler
 def api_get_container_stats():
-    try:
-        stats = get_container_stats()
-        return jsonify({"success": True, "stats": stats})
-    except ConnectionError as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-    except Exception as e:
-        logger.error(f"获取容器统计信息失败: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": True, "stats": get_container_stats()})
 
-# 启动容器
-@app.route('/api/start/<container_id>')
+
+@app.route('/api/start/<container_id>', methods=['POST'])
+@api_error_handler
 def api_start_container(container_id):
-    try:
-        start_container(container_id)
-        return jsonify({"success": True})
-    except ConnectionError as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-    except Exception as e:
-        logger.error(f"启动容器失败: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    start_container(container_id)
+    return jsonify({"success": True})
 
-# 停止容器
-@app.route('/api/stop/<container_id>')
+
+@app.route('/api/stop/<container_id>', methods=['POST'])
+@api_error_handler
 def api_stop_container(container_id):
-    try:
-        stop_container(container_id)
-        return jsonify({"success": True})
-    except ConnectionError as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-    except Exception as e:
-        logger.error(f"停止容器失败: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    stop_container(container_id)
+    return jsonify({"success": True})
 
-# 重启容器
-@app.route('/api/restart/<container_id>')
+
+@app.route('/api/restart/<container_id>', methods=['POST'])
+@api_error_handler
 def api_restart_container(container_id):
-    try:
-        restart_container(container_id)
-        return jsonify({"success": True})
-    except ConnectionError as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-    except Exception as e:
-        logger.error(f"重启容器失败: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    restart_container(container_id)
+    return jsonify({"success": True})
 
-# 删除容器
-@app.route('/api/delete/container/<container_id>')
+
+@app.route('/api/unpause/<container_id>', methods=['POST'])
+@api_error_handler
+def api_unpause_container(container_id):
+    from app.services.container_service import unpause_container
+    unpause_container(container_id)
+    return jsonify({"success": True})
+
+
+@app.route('/api/delete/container/<container_id>', methods=['DELETE'])
+@api_error_handler
 def api_delete_container(container_id):
-    try:
-        force = request.args.get('force', 'false').lower() == 'true'
-        delete_container(container_id, force=force)
-        return jsonify({"success": True})
-    except ConnectionError as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-    except Exception as e:
-        logger.error(f"删除容器失败: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    force = request.args.get('force', 'false').lower() == 'true'
+    delete_container(container_id, force=force)
+    return jsonify({"success": True})
 
-# 删除镜像
-@app.route('/api/delete/image/<image_id>')
+
+@app.route('/api/delete/image/<image_id>', methods=['DELETE'])
+@api_error_handler
 def api_delete_image(image_id):
-    try:
-        force = request.args.get('force', 'false').lower() == 'true'
-        delete_image(image_id, force=force)
-        return jsonify({"success": True})
-    except ConnectionError as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-    except Exception as e:
-        logger.error(f"删除镜像失败: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    force = request.args.get('force', 'false').lower() == 'true'
+    delete_image(image_id, force=force)
+    return jsonify({"success": True})
 
-# 获取容器日志
+
+@app.route('/api/check-port')
+@api_error_handler
+def api_check_port():
+    import socket
+    host = request.args.get('host', 'localhost')
+    port = request.args.get('port', type=int)
+    if not port:
+        return jsonify({"success": False, "error": "缺少端口参数"}), 400
+    try:
+        with socket.create_connection((host, port), timeout=2):
+            return jsonify({"success": True, "reachable": True})
+    except (OSError, TimeoutError):
+        return jsonify({"success": True, "reachable": False})
+
+
 @app.route('/api/logs/<container_id>')
+@api_error_handler
 def api_get_container_logs(container_id):
-    try:
-        logs = get_container_logs(container_id)
-        return logs
-    except ConnectionError as e:
-        return f"Docker连接失败: {str(e)}", 500
-    except Exception as e:
-        logger.error(f"获取容器日志失败: {e}")
-        return f"获取日志失败: {str(e)}", 500
+    return get_container_logs(container_id)
 
-# 在容器中执行命令
+
 @app.route('/api/exec/<container_id>', methods=['POST'])
+@api_error_handler
 def api_exec_command(container_id):
-    try:
-        data = request.json
-        command = data.get('command')
-        
-        if not command:
-            return jsonify({"success": False, "error": "缺少命令参数"}), 400
-        
-        client = get_docker_client()
-        if not client:
-            return jsonify({"success": False, "error": "Docker连接失败"}), 500
-        
-        container = client.containers.get(container_id)
-        # 禁用TTY模式以避免ANSI转义序列
-        result = container.exec_run(command, tty=False)
-        
-        return jsonify({
-            "success": True,
-            "exit_code": result.exit_code,
-            "output": result.output.decode('utf-8', errors='replace')
-        })
-    except Exception as e:
-        logger.error(f"执行命令失败: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    data = request.json
+    command = data.get('command')
+
+    if not command:
+        return jsonify({"success": False, "error": "缺少命令参数"}), 400
+
+    client = get_docker_client()
+    if not client:
+        return jsonify({"success": False, "error": "Docker连接失败"}), 500
+
+    container = client.containers.get(container_id)
+    result = container.exec_run(command, tty=False)
+
+    return jsonify({
+        "success": True,
+        "exit_code": result.exit_code,
+        "output": result.output.decode('utf-8', errors='replace')
+    })

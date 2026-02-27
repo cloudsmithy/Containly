@@ -7,101 +7,104 @@
   <link rel="stylesheet" href="/static/css/style.css">
   <link rel="stylesheet" href="/static/css/colors.css">
   <style>
-    .blacklist-container {
-      max-width: 800px;
+    .bl-wrap {
+      max-width: 640px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 32px 24px;
     }
-    
-    .blacklist-header {
+    .bl-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
-    
-    .blacklist-item {
+    .bl-header h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .bl-header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .bl-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 10px;
-      margin-bottom: 10px;
-      background-color: rgba(0,0,0,0.05);
-      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
       color: var(--text);
+      font-size: 0.92rem;
+      transition: box-shadow 0.2s;
     }
-    
-    body.dark .blacklist-item {
-      background-color: rgba(255,255,255,0.1);
-    }
-    
-    .remove-btn {
-      background-color: #dc3545;
-      color: white;
+    .bl-item:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+    .bl-remove {
+      background: var(--red);
+      color: #fff;
       border: none;
-      padding: 5px 10px;
-      border-radius: 4px;
+      padding: 5px 14px;
+      border-radius: 6px;
+      font-size: 0.82rem;
       cursor: pointer;
+      transition: background 0.15s;
     }
-    
-    .empty-list {
+    .bl-remove:hover { background: #dc2626; }
+    .bl-empty {
       text-align: center;
-      padding: 20px;
-      background-color: rgba(0,0,0,0.05);
-      border-radius: 8px;
+      padding: 32px;
+      color: var(--text-secondary);
+      background: var(--bg-card);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      font-size: 0.9rem;
+    }
+    .bl-clear {
+      background: var(--btn-bg);
       color: var(--text);
-    }
-    
-    body.dark .empty-list {
-      background-color: rgba(255,255,255,0.1);
-    }
-    
-    .clear-all {
-      background-color: #6c757d;
-      color: white;
       border: none;
-      padding: 5px 10px;
-      border-radius: 4px;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 0.85rem;
       cursor: pointer;
+      transition: all 0.15s;
     }
-    
-    h1 {
-      color: var(--text);
-    }
+    .bl-clear:hover { background: var(--btn-bg-hover); }
   </style>
 </head>
 <body>
-  <div class="blacklist-container">
-    <div class="blacklist-header">
-      <h1>黑名单管理</h1>
-      <div style="display: flex; gap: 10px; align-items: center;">
-        <a href="/" class="back-link">返回首页</a>
+  <div class="bl-wrap">
+    <div class="bl-header">
+      <h1>🚫 黑名单管理</h1>
+      <div class="bl-header-actions">
+        <a href="/" class="nav-link">← 返回</a>
         <button class="dark-toggle" id="darkBtn">🌙</button>
       </div>
     </div>
-    
-    <div id="blacklist-items">
-      <!-- 黑名单项目将通过 JavaScript 动态添加 -->
-    </div>
-    
+
+    <div id="blacklist-items"></div>
+
     <div style="margin-top: 20px; text-align: center;">
-      <button id="clear-all" class="clear-all">清空黑名单</button>
+      <button id="clear-all" class="bl-clear">清空黑名单</button>
     </div>
   </div>
-  
+
   <script>
-    // 初始化主题
     function initTheme() {
       const theme = localStorage.getItem("theme");
       const darkBtn = document.getElementById("darkBtn");
-      
       if (theme === "dark") {
         document.body.classList.add("dark");
         darkBtn.textContent = "☀️";
       } else {
         darkBtn.textContent = "🌙";
       }
-      
       darkBtn.addEventListener("click", () => {
         document.body.classList.toggle("dark");
         const isDark = document.body.classList.contains("dark");
@@ -109,52 +112,44 @@
         darkBtn.textContent = isDark ? "☀️" : "🌙";
       });
     }
-    
+
     document.addEventListener("DOMContentLoaded", () => {
-      // 初始化主题
       initTheme();
-      
-      const blacklistedContainers = JSON.parse(localStorage.getItem("blacklisted_containers") || "[]");
-      const blacklistItems = document.getElementById("blacklist-items");
-      
-      if (blacklistedContainers.length === 0) {
-        blacklistItems.innerHTML = '<div class="empty-list">黑名单为空</div>';
+
+      const blacklisted = JSON.parse(localStorage.getItem("blacklisted_containers") || "[]");
+      const container = document.getElementById("blacklist-items");
+
+      if (blacklisted.length === 0) {
+        container.innerHTML = '<div class="bl-empty">黑名单为空</div>';
         return;
       }
-      
-      blacklistedContainers.forEach(name => {
+
+      blacklisted.forEach(name => {
         const item = document.createElement("div");
-        item.className = "blacklist-item";
-        item.innerHTML = `
-          <div>${name}</div>
-          <button class="remove-btn" data-name="${name}">移除</button>
-        `;
-        blacklistItems.appendChild(item);
+        item.className = "bl-item";
+        item.innerHTML = `<span>${name}</span><button class="bl-remove" data-name="${name}">移除</button>`;
+        container.appendChild(item);
       });
-      
-      // 移除黑名单项
-      document.querySelectorAll(".remove-btn").forEach(btn => {
+
+      document.querySelectorAll(".bl-remove").forEach(btn => {
         btn.addEventListener("click", () => {
           const name = btn.dataset.name;
-          const index = blacklistedContainers.indexOf(name);
-          
-          if (index !== -1) {
-            blacklistedContainers.splice(index, 1);
-            localStorage.setItem("blacklisted_containers", JSON.stringify(blacklistedContainers));
-            btn.closest(".blacklist-item").remove();
-            
-            if (blacklistedContainers.length === 0) {
-              blacklistItems.innerHTML = '<div class="empty-list">黑名单为空</div>';
+          const idx = blacklisted.indexOf(name);
+          if (idx !== -1) {
+            blacklisted.splice(idx, 1);
+            localStorage.setItem("blacklisted_containers", JSON.stringify(blacklisted));
+            btn.closest(".bl-item").remove();
+            if (blacklisted.length === 0) {
+              container.innerHTML = '<div class="bl-empty">黑名单为空</div>';
             }
           }
         });
       });
-      
-      // 清空黑名单
+
       document.getElementById("clear-all").addEventListener("click", () => {
         if (confirm("确定要清空黑名单吗？")) {
           localStorage.setItem("blacklisted_containers", "[]");
-          blacklistItems.innerHTML = '<div class="empty-list">黑名单为空</div>';
+          container.innerHTML = '<div class="bl-empty">黑名单为空</div>';
         }
       });
     });

@@ -54,6 +54,9 @@ function initHostIP() {
   });
 }
 
+// 资源统计定时刷新 ID
+let _statsIntervalId = null;
+
 // 初始化资源统计控制
 function initStatsControl() {
   const toggleBtn = document.getElementById("toggle-stats");
@@ -63,6 +66,7 @@ function initStatsControl() {
   if (showStats) {
     document.body.classList.add("show-stats");
     toggleBtn.textContent = "隐藏资源统计";
+    startStatsRefresh();
   }
   
   toggleBtn.addEventListener("click", () => {
@@ -70,11 +74,25 @@ function initStatsControl() {
     localStorage.setItem("show_stats", isShowing);
     toggleBtn.textContent = isShowing ? "隐藏资源统计" : "显示资源统计";
     
-    // 如果显示资源统计，则加载资源数据
     if (isShowing) {
       loadContainerStats();
+      startStatsRefresh();
+    } else {
+      stopStatsRefresh();
     }
   });
+}
+
+function startStatsRefresh() {
+  stopStatsRefresh();
+  _statsIntervalId = setInterval(loadContainerStats, 15000);
+}
+
+function stopStatsRefresh() {
+  if (_statsIntervalId) {
+    clearInterval(_statsIntervalId);
+    _statsIntervalId = null;
+  }
 }
 
 // 异步加载容器数据
@@ -187,7 +205,7 @@ function renderContainerGroup(containers, status) {
   const grid = document.getElementById(`${status}-grid`);
   
   if (!containers || containers.length === 0) {
-    grid.innerHTML = `<div class="empty-state">没有${status}状态的容器</div>`;
+    grid.innerHTML = `<div class="empty-state">暂无 ${status} 状态的容器</div>`;
     return;
   }
   
@@ -228,6 +246,11 @@ function createContainerCard(container, status, index) {
   } else if (container.status === 'exited') {
     actionsHtml += `
       <button class="action-btn start-btn" data-id="${container.id}" title="启动容器">▶️</button>
+      <button class="action-btn logs-btn" data-id="${container.id}" title="查看日志">📋</button>
+    `;
+  } else if (container.status === 'paused') {
+    actionsHtml += `
+      <button class="action-btn unpause-btn" data-id="${container.id}" title="恢复容器">▶️</button>
       <button class="action-btn logs-btn" data-id="${container.id}" title="查看日志">📋</button>
     `;
   }
@@ -305,22 +328,19 @@ function initAllCardEvents() {
 
 // 初始化单个卡片的事件
 function initCardEvents(card) {
-  // 初始化卡片操作切换
-  initCardToggleActions(card);
-  
-  // 初始化容器操作按钮
+  // 标记已初始化的事件，避免重复绑定 addEventListener
+  if (!card._eventsInitialized) {
+    initCardToggleActions(card);
+    initProtocolToggle(card);
+    initBlacklistButton(card);
+    initCopyable(card);
+    card._eventsInitialized = true;
+  }
+
+  // 这些用 onclick 赋值，可以安全重复调用
   initContainerActionButtons(card);
-  
-  // 初始化协议切换按钮
-  initProtocolToggle(card);
-  
-  // 初始化黑名单按钮
-  initBlacklistButton(card);
-  
-  // 初始化复制功能
-  initCopyable(card);
-  
-  // 延迟初始化端口检测，减少页面加载时的负担
+
+  // 延迟初始化端口检测
   setTimeout(() => {
     initPortCheck(card);
   }, 1000);
@@ -354,228 +374,139 @@ function initCardToggleActions(card) {
   });
 }
 
+// 通用容器操作请求（带防重复点击）
+function containerAction(url, method, card, loadingMsg, onSuccess, onError) {
+  if (card._actionInProgress) return;
+  card._actionInProgress = true;
+  addLoadingOverlay(card, loadingMsg);
+  fetch(url, { method })
+    .then(response => {
+      if (!response.ok) throw new Error(`操作失败: ${response.status}`);
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        onSuccess(data);
+      } else {
+        removeLoadingOverlay(card);
+        card._actionInProgress = false;
+        showToast(`失败: ${data.error || '未知错误'}`);
+      }
+    })
+    .catch(error => {
+      removeLoadingOverlay(card);
+      card._actionInProgress = false;
+      showToast(`请求错误: ${error.message}`);
+      if (onError) onError(error);
+    });
+}
+
 // 初始化容器操作按钮
 function initContainerActionButtons(card) {
   // 启动按钮
   const startBtn = card.querySelector(".start-btn");
   if (startBtn) {
     startBtn.onclick = (e) => {
-      e.stopPropagation(); // 阻止事件冒泡
-      const containerId = startBtn.dataset.id;
-      
-      // 添加加载特效
-      addLoadingOverlay(card, "正在启动容器...");
-      
-      fetch(`/api/start/${containerId}`)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`操作失败: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          if (data.success) {
-            console.log("容器启动成功，准备移动卡片");
-            // 添加移动动画
-            card.classList.add("card-moving");
-            
-            // 延迟后移动卡片到 running 分组
-            setTimeout(() => {
-              moveCardToSection(card, "running");
-            }, 500);
-          } else {
-            // 移除加载特效
-            removeLoadingOverlay(card);
-            showToast(`启动失败: ${data.error || '未知错误'}`);
-          }
-        })
-        .catch(error => {
-          // 移除加载特效
-          removeLoadingOverlay(card);
-          showToast(`请求错误: ${error.message}`);
-          console.error("启动容器错误:", error);
-        });
+      e.stopPropagation();
+      containerAction(`/api/start/${startBtn.dataset.id}`, 'POST', card, "正在启动容器...", () => {
+        card.classList.add("card-moving");
+        setTimeout(() => moveCardToSection(card, "running"), 500);
+      });
     };
   }
-  
+
   // 停止按钮
   const stopBtn = card.querySelector(".stop-btn");
   if (stopBtn) {
     stopBtn.onclick = (e) => {
-      e.stopPropagation(); // 阻止事件冒泡
-      const containerId = stopBtn.dataset.id;
-      
-      // 添加加载特效
-      addLoadingOverlay(card, "正在停止容器...");
-      
-      fetch(`/api/stop/${containerId}`)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`操作失败: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          if (data.success) {
-            console.log("容器停止成功，准备移动卡片");
-            // 添加移动动画
-            card.classList.add("card-moving");
-            
-            // 延迟后移动卡片到 exited 分组
-            setTimeout(() => {
-              moveCardToSection(card, "exited");
-            }, 500);
-          } else {
-            // 移除加载特效
-            removeLoadingOverlay(card);
-            showToast(`停止失败: ${data.error || '未知错误'}`);
-          }
-        })
-        .catch(error => {
-          // 移除加载特效
-          removeLoadingOverlay(card);
-          showToast(`请求错误: ${error.message}`);
-          console.error("停止容器错误:", error);
-        });
+      e.stopPropagation();
+      containerAction(`/api/stop/${stopBtn.dataset.id}`, 'POST', card, "正在停止容器...", () => {
+        card.classList.add("card-moving");
+        setTimeout(() => moveCardToSection(card, "exited"), 500);
+      });
     };
   }
-  
+
   // 重启按钮
   const restartBtn = card.querySelector(".restart-btn");
   if (restartBtn) {
     restartBtn.onclick = (e) => {
-      e.stopPropagation(); // 阻止事件冒泡
-      const containerId = restartBtn.dataset.id;
-      
-      // 添加加载特效
-      addLoadingOverlay(card, "正在重启容器...");
-      
-      fetch(`/api/restart/${containerId}`)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`操作失败: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          if (data.success) {
-            // 由于重启后状态不变，只需刷新容器数据
-            setTimeout(() => {
-              loadContainers();
-            }, 1000);
-          } else {
-            // 移除加载特效
-            removeLoadingOverlay(card);
-            showToast(`重启失败: ${data.error || '未知错误'}`);
-          }
-        })
-        .catch(error => {
-          // 移除加载特效
-          removeLoadingOverlay(card);
-          showToast(`请求错误: ${error.message}`);
-          console.error("重启容器错误:", error);
-        });
+      e.stopPropagation();
+      containerAction(`/api/restart/${restartBtn.dataset.id}`, 'POST', card, "正在重启容器...", () => {
+        setTimeout(() => loadContainers(), 1000);
+      });
     };
   }
-  
+
+  // 恢复（unpause）按钮
+  const unpauseBtn = card.querySelector(".unpause-btn");
+  if (unpauseBtn) {
+    unpauseBtn.onclick = (e) => {
+      e.stopPropagation();
+      containerAction(`/api/unpause/${unpauseBtn.dataset.id}`, 'POST', card, "正在恢复容器...", () => {
+        card.classList.add("card-moving");
+        setTimeout(() => moveCardToSection(card, "running"), 500);
+      });
+    };
+  }
+
   // 日志按钮
   const logsBtn = card.querySelector(".logs-btn");
   if (logsBtn) {
     logsBtn.onclick = (e) => {
-      e.stopPropagation(); // 阻止事件冒泡
+      e.stopPropagation();
       const containerId = logsBtn.dataset.id;
       if (!containerId) return;
-      
+
       const logViewer = document.querySelector(".log-viewer");
       const logContent = document.querySelector(".log-content");
-      
+      const logName = document.getElementById("log-container-name");
       if (!logViewer || !logContent) return;
-      
-      // 显示加载中
+
+      if (logName) logName.textContent = card.dataset.containerName || '';
+
+      // 存储当前查看的容器 ID，供刷新使用
+      logViewer.dataset.containerId = containerId;
+
       logContent.innerHTML = '<div class="loader"></div> 加载中...';
       logViewer.classList.add("active");
-      
-      // 获取日志
-      fetch(`/api/logs/${containerId}`)
-        .then(response => response.text())
-        .then(logs => {
-          logContent.textContent = logs;
-        })
-        .catch(error => {
-          logContent.textContent = `获取日志失败: ${error.message}`;
-          console.error("获取日志错误:", error);
-        });
+
+      fetchLogs(containerId, logContent);
     };
   }
-  
+
   // 终端按钮
   const terminalBtn = card.querySelector(".terminal-btn");
   if (terminalBtn) {
     terminalBtn.onclick = (e) => {
-      e.stopPropagation(); // 阻止事件冒泡
+      e.stopPropagation();
       const containerId = terminalBtn.dataset.id;
-      if (!containerId) return;
-      
-      // 跳转到终端页面
-      window.open(`/terminal/${containerId}`, '_blank');
+      if (containerId) window.open(`/terminal/${containerId}`, '_blank');
     };
   }
-  
+
   // 删除容器按钮
   const deleteBtn = card.querySelector(".delete-btn");
   if (deleteBtn) {
     deleteBtn.onclick = (e) => {
-      e.stopPropagation(); // 阻止事件冒泡
+      e.stopPropagation();
       const containerId = deleteBtn.dataset.id;
       const containerName = card.dataset.containerName;
-      
-      // 显示确认对话框
-      showConfirmDialog(
-        `确定要删除容器 ${containerName} 吗？`,
-        () => {
-          // 添加加载特效
-          addLoadingOverlay(card, "正在删除容器...");
-          
-          // 发送删除请求
-          fetch(`/api/delete/container/${containerId}?force=true`)
-            .then(response => {
-              if (!response.ok) {
-                throw new Error(`操作失败: ${response.status}`);
-              }
-              return response.json();
-            })
-            .then(data => {
-              if (data.success) {
-                // 添加淡出动画
-                card.classList.add("card-fading");
-                
-                // 延迟后移除卡片
-                setTimeout(() => {
-                  card.remove();
-                  
-                  // 检查分组是否为空
-                  const status = card.dataset.status;
-                  const grid = document.getElementById(`${status}-grid`);
-                  if (grid && grid.children.length === 0) {
-                    grid.innerHTML = `<div class="empty-state">没有${status}状态的容器</div>`;
-                  }
-                }, 500);
-                
-                showToast("容器删除成功");
-              } else {
-                // 移除加载特效
-                removeLoadingOverlay(card);
-                showToast(`删除失败: ${data.error || '未知错误'}`);
-              }
-            })
-            .catch(error => {
-              // 移除加载特效
-              removeLoadingOverlay(card);
-              showToast(`请求错误: ${error.message}`);
-              console.error("删除容器错误:", error);
-            });
-        }
-      );
+
+      showConfirmDialog(`确定要删除容器 ${containerName} 吗？`, () => {
+        containerAction(`/api/delete/container/${containerId}?force=true`, 'DELETE', card, "正在删除容器...", () => {
+          card.classList.add("card-fading");
+          setTimeout(() => {
+            card.remove();
+            const status = card.dataset.status;
+            const grid = document.getElementById(`${status}-grid`);
+            if (grid && grid.children.length === 0) {
+              grid.innerHTML = `<div class="empty-state">暂无 ${status} 状态的容器</div>`;
+            }
+          }, 500);
+          showToast("容器删除成功");
+        });
+      });
     };
   }
 }
@@ -648,32 +579,34 @@ function initCopyable(card) {
   });
 }
 
-// 初始化端口检测
+// 初始化端口检测（通过后端 API 检测）
 function initPortCheck(card) {
   const hostIP = document.getElementById("host-ip").value || "localhost";
-  
+
   card.querySelectorAll(".port-item").forEach(item => {
-    if (!item) return;
-    
     const hostPort = item.dataset.host;
     if (!hostPort) return;
-    
+
     const indicator = item.querySelector(".status-indicator");
     if (!indicator) return;
-    
-    const protocol = card.dataset.protocol || "http";
-    const url = `${protocol}://${hostIP}:${hostPort}`;
-    
-    fetch(url, { mode: 'no-cors', cache: 'no-store' })
-      .then(() => {
-        indicator.classList.add("open");
-        indicator.classList.remove("closed");
-        indicator.title = "可访问";
+
+    fetch(`/api/check-port?host=${encodeURIComponent(hostIP)}&port=${hostPort}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.reachable) {
+          indicator.classList.add("open");
+          indicator.classList.remove("closed");
+          indicator.title = "可访问";
+        } else {
+          indicator.classList.add("closed");
+          indicator.classList.remove("open");
+          indicator.title = "不可访问";
+        }
       })
       .catch(() => {
         indicator.classList.add("closed");
         indicator.classList.remove("open");
-        indicator.title = "不可访问";
+        indicator.title = "检测失败";
       });
   });
 }
@@ -725,78 +658,44 @@ function removeLoadingOverlay(card) {
 
 // 将卡片移动到指定状态分组
 function moveCardToSection(card, targetStatus) {
-  // 获取目标分组
   const targetGrid = document.getElementById(`${targetStatus}-grid`);
   if (!targetGrid) {
-    console.error(`找不到目标分组: ${targetStatus}-grid`);
-    // 如果找不到目标分组，刷新容器数据
     loadContainers();
     return;
   }
-  
-  // 获取当前分组
+
   const currentSection = card.closest('.section');
   if (!currentSection) {
-    console.error('找不到当前分组');
     loadContainers();
     return;
   }
-  
+
   const currentStatus = currentSection.dataset.status;
   const sourceGrid = document.getElementById(`${currentStatus}-grid`);
-  
-  // 获取容器ID和名称
-  const containerId = card.dataset.containerId;
-  const containerName = card.dataset.containerName;
-  const index = parseInt(card.dataset.index || "0"); // 保留索引
-  
-  console.log(`移动容器: ${containerName} (${containerId}) 从 ${currentStatus} 到 ${targetStatus}, 索引: ${index}`);
-  
-  // 克隆卡片以保留其数据
-  const clonedCard = card.cloneNode(true);
-  
-  // 移除原卡片
-  card.remove();
-  
+  const index = parseInt(card.dataset.index || "0");
+
+  // 直接移动 DOM 节点（appendChild 会自动从原位置移除）
+  const emptyState = targetGrid.querySelector(".empty-state");
+  if (emptyState) emptyState.remove();
+
+  // 更新卡片状态和颜色类
+  card.dataset.status = targetStatus;
+  ['running', 'exited', 'paused', 'other'].forEach(s => {
+    for (let i = 0; i < 6; i++) card.classList.remove(`${s}-card-${i}`);
+  });
+  card.classList.add(`${targetStatus}-card-${index}`);
+
+  targetGrid.appendChild(card);
+
   // 检查原分组是否为空
   if (sourceGrid && sourceGrid.children.length === 0) {
-    sourceGrid.innerHTML = `<div class="empty-state">没有${currentStatus}状态的容器</div>`;
+    sourceGrid.innerHTML = `<div class="empty-state">暂无 ${currentStatus} 状态的容器</div>`;
   }
-  
-  // 检查目标分组是否有空状态提示
-  const emptyState = targetGrid.querySelector(".empty-state");
-  if (emptyState) {
-    emptyState.remove();
-  }
-  
-  // 更新卡片的状态和类名
-  clonedCard.dataset.status = targetStatus;
-  
-  // 移除所有颜色类
-  clonedCard.classList.remove(
-    'running-card-0', 'running-card-1', 'running-card-2', 'running-card-3', 'running-card-4', 'running-card-5',
-    'exited-card-0', 'exited-card-1', 'exited-card-2', 'exited-card-3', 'exited-card-4', 'exited-card-5',
-    'paused-card-0', 'paused-card-1', 'paused-card-2', 'paused-card-3', 'paused-card-4', 'paused-card-5',
-    'other-card-0', 'other-card-1', 'other-card-2', 'other-card-3', 'other-card-4', 'other-card-5'
-  );
-  
-  // 添加新的颜色类
-  clonedCard.classList.add(`${targetStatus}-card-${index}`);
-  
-  // 添加到目标分组
-  targetGrid.appendChild(clonedCard);
-  
-  // 移除加载特效和移动动画类
-  removeLoadingOverlay(clonedCard);
-  clonedCard.classList.remove("card-moving");
-  
-  // 更新卡片内容以反映新状态
-  updateCardForNewStatus(clonedCard, targetStatus);
-  
-  // 重新初始化卡片事件
-  initCardEvents(clonedCard);
-  
-  console.log(`容器移动完成: ${containerName} 现在在 ${targetStatus} 分组`);
+
+  removeLoadingOverlay(card);
+  card.classList.remove("card-moving");
+  updateCardForNewStatus(card, targetStatus);
+  initCardEvents(card);
 }
 
 // 更新卡片内容以反映新状态
@@ -809,6 +708,13 @@ function updateCardForNewStatus(card, newStatus) {
   // 清空操作按钮
   actionsDiv.innerHTML = '';
   
+  // 公共按钮
+  const commonBtns = `
+    <button class="action-btn protocol-btn" title="切换协议">🔐</button>
+    <button class="action-btn blacklist-btn" title="加入黑名单">🚫</button>
+    <button class="action-btn delete-btn" data-id="${containerId}" title="删除容器">🗑️</button>
+  `;
+
   // 根据新状态添加适当的按钮
   if (newStatus === "running") {
     actionsDiv.innerHTML = `
@@ -816,8 +722,7 @@ function updateCardForNewStatus(card, newStatus) {
       <button class="action-btn restart-btn" data-id="${containerId}" title="重启容器">🔄</button>
       <button class="action-btn logs-btn" data-id="${containerId}" title="查看日志">📋</button>
       <button class="action-btn terminal-btn" data-id="${containerId}" title="终端">💻</button>
-      <button class="action-btn protocol-btn" title="切换协议">🔐</button>
-      <button class="action-btn blacklist-btn" title="加入黑名单">🚫</button>
+      ${commonBtns}
     `;
     
     // 添加资源使用情况占位符
@@ -840,16 +745,13 @@ function updateCardForNewStatus(card, newStatus) {
       const tag = card.querySelector(".tag");
       if (tag) {
         tag.parentNode.insertBefore(resourceUsage, tag.nextSibling);
-      } else {
-        console.error("找不到标签元素");
       }
     }
   } else if (newStatus === "exited") {
     actionsDiv.innerHTML = `
       <button class="action-btn start-btn" data-id="${containerId}" title="启动容器">▶️</button>
       <button class="action-btn logs-btn" data-id="${containerId}" title="查看日志">📋</button>
-      <button class="action-btn protocol-btn" title="切换协议">🔐</button>
-      <button class="action-btn blacklist-btn" title="加入黑名单">🚫</button>
+      ${commonBtns}
     `;
     
     // 移除资源使用情况
@@ -875,16 +777,36 @@ function initBlacklist() {
   });
 }
 
+// 获取容器日志
+function fetchLogs(containerId, logContent) {
+  fetch(`/api/logs/${containerId}`)
+    .then(response => response.text())
+    .then(logs => { logContent.textContent = logs; logContent.scrollTop = logContent.scrollHeight; })
+    .catch(error => { logContent.textContent = `获取日志失败: ${error.message}`; });
+}
+
 // 初始化日志查看功能
 function initLogViewer() {
   const logViewer = document.querySelector(".log-viewer");
   const closeBtn = document.querySelector(".log-close");
-  
+  const refreshBtn = document.getElementById("log-refresh");
+
   if (!logViewer || !closeBtn) return;
-  
+
   closeBtn.addEventListener("click", () => {
     logViewer.classList.remove("active");
   });
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      const containerId = logViewer.dataset.containerId;
+      const logContent = document.querySelector(".log-content");
+      if (containerId && logContent) {
+        logContent.innerHTML = '<div class="loader"></div> 刷新中...';
+        fetchLogs(containerId, logContent);
+      }
+    });
+  }
   
   // 点击背景关闭
   logViewer.addEventListener("click", (e) => {
@@ -903,79 +825,61 @@ function initLogViewer() {
 
 // 显示提示消息
 function showToast(msg, duration = 3000) {
-  // 只显示错误消息，成功消息不显示
-  if (msg.includes('失败') || msg.includes('错误') || msg.includes('已复制') || msg.includes('黑名单')) {
-    // 获取或创建 toast 容器
-    let toastContainer = document.getElementById("toast-container");
-    if (!toastContainer) {
-      toastContainer = document.createElement("div");
-      toastContainer.id = "toast-container";
-      toastContainer.style.position = "fixed";
-      toastContainer.style.top = "10px";
-      toastContainer.style.right = "10px";
-      toastContainer.style.zIndex = "9999";
-      document.body.appendChild(toastContainer);
-    }
-    
-    const toast = document.createElement("div");
-    toast.className = "toast";
-    toast.textContent = msg;
-    toastContainer.appendChild(toast);
-    
-    if (duration > 0) {
-      setTimeout(() => {
-        if (toast.parentNode) {
-          toast.remove();
-        }
-      }, duration);
-    }
+  // 获取或创建 toast 容器
+  let toastContainer = document.getElementById("toast-container");
+  if (!toastContainer) {
+    toastContainer = document.createElement("div");
+    toastContainer.id = "toast-container";
+    toastContainer.style.position = "fixed";
+    toastContainer.style.top = "10px";
+    toastContainer.style.right = "10px";
+    toastContainer.style.zIndex = "9999";
+    document.body.appendChild(toastContainer);
+  }
+
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = msg;
+  toastContainer.appendChild(toast);
+
+  if (duration > 0) {
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.remove();
+      }
+    }, duration);
   }
 }
+// 确认对话框回调（闭包，避免全局泄漏）
+let _confirmCallback = null;
+
 // 初始化确认对话框
 function initConfirmDialog() {
   const dialog = document.getElementById("confirm-dialog");
   const cancelBtn = document.getElementById("confirm-cancel");
   const okBtn = document.getElementById("confirm-ok");
-  
+
   if (!dialog || !cancelBtn || !okBtn) return;
-  
-  // 取消按钮
-  cancelBtn.addEventListener("click", () => {
+
+  const closeDialog = () => {
     dialog.classList.remove("active");
-    // 清除确认回调
-    dialog.dataset.confirmCallback = "";
-  });
-  
-  // 确认按钮
+    _confirmCallback = null;
+  };
+
+  cancelBtn.addEventListener("click", closeDialog);
+
   okBtn.addEventListener("click", () => {
     dialog.classList.remove("active");
-    
-    // 执行确认回调
-    const callbackName = dialog.dataset.confirmCallback;
-    if (callbackName && window[callbackName]) {
-      window[callbackName]();
-    }
-    
-    // 清除确认回调
-    dialog.dataset.confirmCallback = "";
+    if (_confirmCallback) _confirmCallback();
+    _confirmCallback = null;
   });
-  
-  // 点击背景关闭
+
   dialog.addEventListener("click", (e) => {
-    if (e.target === dialog) {
-      dialog.classList.remove("active");
-      // 清除确认回调
-      dialog.dataset.confirmCallback = "";
-    }
+    if (e.target === dialog) closeDialog();
   });
-  
-  // ESC 键关闭
+
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && dialog.classList.contains("active")) {
-      dialog.classList.remove("active");
-      // 清除确认回调
-      dialog.dataset.confirmCallback = "";
-    }
+    if (e.key === "Escape" && dialog.classList.contains("active")) closeDialog();
   });
 }
 
@@ -983,21 +887,9 @@ function initConfirmDialog() {
 function showConfirmDialog(message, callback) {
   const dialog = document.getElementById("confirm-dialog");
   const messageEl = document.getElementById("confirm-message");
-  
   if (!dialog || !messageEl) return;
-  
-  // 设置消息
+
   messageEl.textContent = message;
-  
-  // 创建一个唯一的回调函数名
-  const callbackName = `confirmCallback_${Date.now()}`;
-  
-  // 将回调函数添加到全局作用域
-  window[callbackName] = callback;
-  
-  // 存储回调函数名
-  dialog.dataset.confirmCallback = callbackName;
-  
-  // 显示对话框
+  _confirmCallback = callback;
   dialog.classList.add("active");
 }

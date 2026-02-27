@@ -1,193 +1,156 @@
-/* 终端样式 */
+/* ===== Containly Terminal — macOS-style ===== */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
 body {
-  background-color: #2b2b2b;
-  color: #f0f0f0;
-  margin: 0;
-  padding: 0;
+  background: #1a1b26;
+  color: #c0caf5;
+  font-family: 'Menlo', 'Monaco', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
   height: 100vh;
   display: flex;
   flex-direction: column;
-}
-
-.terminal-container {
-  background-color: #1e1e1e;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-  border-radius: 6px;
   overflow: hidden;
-  margin: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.terminal-header {
-  background-color: #333;
-  color: white;
-  padding: 8px 12px;
+/* --- Top bar (macOS title bar style) --- */
+.term-topbar {
+  background: linear-gradient(180deg, #2a2b3d 0%, #24253a 100%);
+  padding: 10px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #444;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  border-bottom: 1px solid #1a1b26;
+  -webkit-app-region: drag;
+  flex-shrink: 0;
 }
 
-.terminal-info {
+.term-topbar-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-#container-name {
-  font-weight: bold;
+/* Traffic light dots */
+.term-traffic-lights {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
-#container-id {
-  font-family: monospace;
-  color: #aaa;
-  font-size: 0.9rem;
-}
-
-.terminal-actions button {
-  background-color: #444;
-  color: white;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 3px;
+.term-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
   cursor: pointer;
-  transition: background-color 0.2s;
-  font-size: 0.9rem;
-  margin-left: 5px;
+  transition: filter 0.15s;
+  display: inline-block;
+  text-decoration: none;
+}
+.term-dot:hover { filter: brightness(1.3); }
+
+.term-dot-red { background: #ff5f57; }
+.term-dot-yellow { background: #febc2e; }
+.term-dot-green { background: #28c840; }
+
+.term-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #a9b1d6;
+  letter-spacing: 0.3px;
 }
 
-.terminal-actions button:hover {
-  background-color: #555;
+.term-id {
+  font-size: 11px;
+  color: #565f89;
+  font-family: monospace;
+  background: rgba(255,255,255,0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
-.command-history {
-  flex: 1;
-  padding: 10px;
-  overflow-y: auto;
-  background-color: #1e1e1e;
-  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.command-input-container {
+.term-topbar-right {
   display: flex;
-  padding: 10px;
-  background-color: #252525;
-  border-top: 1px solid #444;
   align-items: center;
 }
 
-.command-prompt {
-  color: #4CAF50;
-  font-weight: bold;
-  margin-right: 8px;
-  white-space: nowrap;
+/* Connection status */
+.term-status {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+.term-status-connected { color: #9ece6a; background: rgba(158,206,106,0.1); }
+.term-status-disconnected { color: #f7768e; background: rgba(247,118,142,0.1); }
+.term-status-error { color: #e0af68; background: rgba(224,175,104,0.1); }
+
+/* --- Terminal output area --- */
+.term-body {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  font-size: 13.5px;
+  line-height: 1.7;
+  word-break: break-all;
+  white-space: pre-wrap;
+  background: #1a1b26;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2b3d transparent;
+}
+
+.term-body::-webkit-scrollbar { width: 6px; }
+.term-body::-webkit-scrollbar-track { background: transparent; }
+.term-body::-webkit-scrollbar-thumb { background: #2a2b3d; border-radius: 3px; }
+.term-body::-webkit-scrollbar-thumb:hover { background: #3b3d57; }
+
+/* Selection */
+.term-body ::selection {
+  background: rgba(130, 170, 255, 0.25);
+}
+
+/* --- Input bar --- */
+.term-input-bar {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background: linear-gradient(180deg, #1f2030 0%, #1a1b26 100%);
+  border-top: 1px solid #2a2b3d;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.term-prompt {
+  color: #7aa2f7;
+  font-weight: 700;
+  font-size: 14px;
+  user-select: none;
+  text-shadow: 0 0 8px rgba(122,162,247,0.3);
 }
 
 #command-input {
   flex: 1;
-  background-color: transparent;
-  color: #f0f0f0;
+  background: transparent;
   border: none;
   outline: none;
-  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  padding: 0;
+  color: #c0caf5;
+  font-family: inherit;
+  font-size: 13.5px;
+  caret-color: #7aa2f7;
 }
 
-#send-command {
-  background-color: #375a7f;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  margin-left: 8px;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: background-color 0.2s;
+#command-input::placeholder {
+  color: #3b3d57;
 }
 
-#send-command:hover {
-  background-color: #446e9b;
-}
+/* --- Fullscreen mode --- */
+body.fullscreen .term-topbar { display: none; }
+body.fullscreen .term-body { padding: 12px; }
 
-.command-line {
-  margin: 0;
-  padding: 2px 0;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.command-text {
-  color: #f0f0f0;
-}
-
-.command-output {
-  color: #bbb;
-  margin: 0 0 10px 0;
-  padding: 2px 0;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.back-link {
-  color: #ddd;
-  text-decoration: none;
-  padding: 5px 10px;
-  background-color: rgba(255,255,255,0.1);
-  border-radius: 3px;
-  transition: background-color 0.3s;
-}
-
-.back-link:hover {
-  background-color: rgba(255,255,255,0.2);
-}
-
-.top-bar {
-  background-color: #333;
-  padding: 10px 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.top-bar h1 {
-  color: #f0f0f0;
-  margin: 0;
-  font-size: 1.2rem;
-}
-
-/* 暗黑模式适配 */
-body.dark {
-  background-color: #1a1a1a;
-}
-
-body.dark .terminal-container {
-  background-color: #1e1e1e;
-}
-
-body.dark .terminal-header {
-  background-color: #2d2d2d;
-  border-bottom-color: #3d3d3d;
-}
-
-body.dark .top-bar {
-  background-color: #2d2d2d;
-}
-
-body.dark .terminal-actions button {
-  background-color: #3d3d3d;
-}
-
-body.dark .terminal-actions button:hover {
-  background-color: #4d4d4d;
-}
-
-body.dark .command-input-container {
-  background-color: #252525;
-  border-top-color: #3d3d3d;
+/* --- Responsive --- */
+@media (max-width: 600px) {
+  .term-topbar { padding: 8px 12px; }
+  .term-title { font-size: 12px; }
+  .term-id { display: none; }
+  .term-body { font-size: 12px; padding: 10px; }
+  #command-input { font-size: 12px; }
 }
