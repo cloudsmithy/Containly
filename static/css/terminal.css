@@ -84,7 +84,7 @@ body {
 .term-status-disconnected { color: #f7768e; background: rgba(247,118,142,0.1); }
 .term-status-error { color: #e0af68; background: rgba(224,175,104,0.1); }
 
-/* --- Terminal output area --- */
+/* --- Terminal output area (also captures keyboard input) --- */
 .term-body {
   flex: 1;
   padding: 16px;
@@ -96,6 +96,8 @@ body {
   background: #1a1b26;
   scrollbar-width: thin;
   scrollbar-color: #2a2b3d transparent;
+  outline: none;
+  cursor: text;
 }
 
 .term-body::-webkit-scrollbar { width: 6px; }
@@ -106,40 +108,6 @@ body {
 /* Selection */
 .term-body ::selection {
   background: rgba(130, 170, 255, 0.25);
-}
-
-/* --- Input bar --- */
-.term-input-bar {
-  display: flex;
-  align-items: center;
-  padding: 10px 16px;
-  background: linear-gradient(180deg, #1f2030 0%, #1a1b26 100%);
-  border-top: 1px solid #2a2b3d;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.term-prompt {
-  color: #7aa2f7;
-  font-weight: 700;
-  font-size: 14px;
-  user-select: none;
-  text-shadow: 0 0 8px rgba(122,162,247,0.3);
-}
-
-#command-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #c0caf5;
-  font-family: inherit;
-  font-size: 13.5px;
-  caret-color: #7aa2f7;
-}
-
-#command-input::placeholder {
-  color: #3b3d57;
 }
 
 /* --- Fullscreen mode --- */
